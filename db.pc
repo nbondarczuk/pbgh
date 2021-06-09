@@ -1,0 +1,646 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static char *SCCS_VERSION = "1.0";
+
+void fovdPrintVerInfoDb (void)
+{
+  printf ("%s\t\t\t%s\n", __FILE__, SCCS_VERSION);
+}
+
+#define SQLCA_INIT
+#define SQLCA_STORAGE_CLASS static
+
+EXEC SQL INCLUDE SQLCA;
+EXEC SQL INCLUDE ORACA;
+EXEC ORACLE OPTION (INCLUDE=./include);
+
+#include "pbgh.h"
+#include "bgh_esql.h"
+#include "rtx.h"
+#include "gen.h"
+
+#define TMP_DIR "/tmp"
+
+#define SQL_NODATAFOUND    1403
+#define DEFAULT_BUFFER_SIZE 1000000
+#define SINGLE 1
+#define MULTI  2
+
+static void sqlerror(int, char *);
+
+extern toenBool goenVerbose;
+extern toenBool goenTestOnly;
+
+EXEC ORACLE OPTION (hold_cursor=yes);
+
+typedef struct
+{
+  int    len;
+  char   arr[1];
+
+} tostLongVarchar;
+
+EXEC SQL type  tostLongVarchar is long varchar;
+
+tostLongVarchar *gpstDocument;
+static int goiCursor;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+VARCHAR       gostOra_DB_User[50];
+VARCHAR       gostOra_DB_Password[50];
+VARCHAR       gostOra_DB_Name[50];
+VARCHAR       gostOra_DB_ConnectString[50];
+
+VARCHAR       gostOra_DB_Rowid[20];
+long          golOra_DB_DocumentSize;
+VARCHAR       gostOra_DB_SortCriteria[41];
+VARCHAR       gostOra_DB_DateCreated[7];
+long          golOra_DB_CustomerId;
+VARCHAR       gostOra_DB_ContrGroup[2];
+long          golOra_DB_OhXact;
+VARCHAR       gostOra_DB_SpecCtrlGroup[2];
+VARCHAR       gostOra_DB_TimmVersion[6];
+VARCHAR       gostOra_DB_BillInsCode[101];
+VARCHAR       gostOra_DB_CSLevel[3];
+VARCHAR       gostOra_DB_BillCycle[3];
+
+short         gosOra_DB_DocumentSize_ind;
+short         gosOra_DB_CustomerId_ind;
+short         gosOra_DB_SortCriteria_ind;
+short         gosOra_DB_DateCreated_ind;
+short         gosOra_DB_ContrGroup_ind;
+short         gosOra_DB_OhXact_ind;
+short         gosOra_DB_SpecCtrlGroup_ind;
+short         gosOra_DB_TimmVersion_ind;
+short         gosOra_DB_BillInsCode_ind;
+short         gosOra_DB_CSLevel_ind;
+short         gosOra_DB_BillCycle_ind;
+
+EXEC SQL END DECLARE SECTION;
+
+
+
+/*
+ * VARCHAR handling
+ */
+
+#define STRCPY_TO_ORA(dest, source)	\
+        {				\
+           (dest).len = strlen(source);	\
+           (void)memcpy((void*)(dest).arr, (void*)(source), (size_t)(dest).len); \
+	}
+#define STRCPY_FROM_ORA(dest, source)	\
+        { 				\
+          (void)memcpy((void*)(dest), (void*)(source).arr, (size_t)(source).len); \
+          (dest)[(source).len] = '\0';	\
+	}
+
+static char message[1000];
+
+
+#ifdef PRODUCT
+
+EXEC SQL AT   :gostOra_DB_Name
+    DECLARE   C_sumsheet_document CURSOR FOR
+     SELECT   rowid,
+              document_size,
+              sort_criteria,
+              TO_CHAR(date_created, 'yymmdd'),
+              customer_id,
+              bill_ins_code
+       FROM   document_all
+      WHERE   type_id = 3
+        AND   processed_by_bgh IS null
+   ORDER BY   customer_id;
+
+EXEC SQL AT   :gostOra_DB_Name
+    DECLARE   C_sumsheet_document_single CURSOR FOR
+     SELECT   rowid,
+              document_size,
+              sort_criteria,              
+              TO_CHAR(date_created, 'yymmdd'),
+              customer_id,
+              bill_ins_code
+       FROM   document_all
+      WHERE   type_id = 3
+        AND   processed_by_bgh IS null
+        AND   customer_id = :golOra_DB_CustomerId
+   ORDER BY   customer_id;
+
+#endif
+
+#ifdef TEST
+
+EXEC SQL AT   :gostOra_DB_Name
+    DECLARE   C_sumsheet_document CURSOR FOR
+     SELECT   rowid,
+              document_size,
+              sort_criteria,
+              TO_CHAR(date_created, 'yymmdd'),
+              customer_id,
+              bill_ins_code
+       FROM   document_all
+      WHERE   type_id = 3;
+
+EXEC SQL AT   :gostOra_DB_Name
+    DECLARE   C_sumsheet_document_single CURSOR FOR
+     SELECT   rowid,
+              document_size,
+              sort_criteria,              
+              TO_CHAR(date_created, 'yymmdd'),
+              customer_id,
+              bill_ins_code
+       FROM   document_all
+      WHERE   type_id = 3
+        AND   customer_id = :golOra_DB_CustomerId;
+
+#endif
+
+
+int foiDB_Open(char *pachzUser, char *pachzPassword, char *pachzConnectString)
+{
+  int rc = 0;
+  char *cs;
+
+  cs = getenv("BSCS_CONNECT");
+  if (cs == NULL)
+    {
+      STRCPY_TO_ORA(gostOra_DB_User, pachzUser);
+      STRCPY_TO_ORA(gostOra_DB_Password, pachzPassword);
+      STRCPY_TO_ORA(gostOra_DB_Name, "DOC_BSCS_DB");
+      STRCPY_TO_ORA(gostOra_DB_ConnectString, pachzConnectString);
+      
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to DB with: %s/%s@%s\n", 
+                  pachzUser, pachzPassword, pachzConnectString);
+        }
+
+      EXEC SQL CONNECT :gostOra_DB_User
+        IDENTIFIED BY :gostOra_DB_Password
+        AT :gostOra_DB_Name
+        USING :gostOra_DB_ConnectString;
+    }
+  else
+    {
+      STRCPY_TO_ORA(gostOra_DB_Name, "DOC_BSCS_DB");
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to DB with: %s\n", cs);
+        }
+
+      EXEC SQL CONNECT :cs AT :gostOra_DB_Name;
+    }
+
+
+  
+  if (sqlca.sqlcode == 0)
+    {
+      rc = 0;
+    }
+  else
+    {
+      rc = ESQL_DBCONNECT;
+      sprintf(message, "%s\n", "Could not connect to DOC_BSCS_DB database");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+
+static void sqlerror(int rc, char *routine)
+{
+  char message_buffer[512];
+  size_t buffer_size;
+  size_t message_length;
+  
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  
+  fprintf(stderr, "\nOracle error while executing %s!\n", routine);
+  
+  buffer_size = sizeof(message_buffer);
+  sqlglm(message_buffer, &buffer_size, &message_length);
+  fprintf(stderr, "%.*s\n", message_length, message_buffer);
+  
+  EXEC SQL ROLLBACK WORK RELEASE;
+
+  exit(1);
+}
+
+int foiDB_CursorOpen(int poiCustomerId)
+{
+  int rc = 0;
+
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "foiDB_CursorOpen: Opening cursor C_sumsheet_document\n");
+    }
+
+  golOra_DB_CustomerId = poiCustomerId;
+  if (poiCustomerId == -1)
+    {
+      goiCursor = MULTI;
+
+      EXEC SQL AT :gostOra_DB_Name
+        OPEN C_sumsheet_document;
+    }
+  else
+    {      
+      goiCursor = SINGLE;
+
+      EXEC SQL AT :gostOra_DB_Name
+        OPEN C_sumsheet_document_single;
+    }
+
+  if (sqlca.sqlcode != 0)
+    {
+      rc = sqlca.sqlcode;
+      sprintf (message, "foiDB_CursorOpen: Could not open C_sumsheet_document cursor");
+      sqlerror (rc, message);
+   }
+   else
+     {
+       if (goenVerbose == TRUE)
+         {
+           fprintf(stderr, "Cursor for SUMSHEET opened\n");
+         }
+     }
+
+  return rc;
+}
+
+int foiDB_CursorClose()
+{
+  int rc = 0;
+
+  if (goiCursor == MULTI)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_CursorClose: Closing cursor C_sumsheet_document\n");
+        }
+
+      EXEC SQL AT :gostOra_DB_Name
+        CLOSE C_sumsheet_document;
+    }
+  else
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_CursorClose: Closing cursor C_sumsheet_document_single for: %d\n", golOra_DB_CustomerId);
+        }
+
+      EXEC SQL AT :gostOra_DB_Name
+        CLOSE C_sumsheet_document_single;      
+    }
+
+  if (sqlca.sqlcode != 0)
+    {
+      rc = sqlca.sqlcode;
+      sprintf (message, "foiDB_CursorClose: Could not close C_sumsheet_document cursor");
+      sqlerror (rc, message);
+   }
+   else
+     {
+       if (goenVerbose == TRUE)
+         {
+           fprintf(stderr, "Cursor for SUMSHEET closed\n");
+         }
+     }
+  
+  return rc;
+}
+
+int foiDB_LoadTimmStr(TYPEID poenType, char **ppchzTimmStr)
+{
+  int rc = 0;
+  char lachzSortCriteria[41];
+  char lachzRowid[20];
+  
+  if (goiCursor == MULTI)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_LoadTimmStr: Fetching record from cursor C_sumsheet_document\n");
+        }
+
+      EXEC SQL AT :gostOra_DB_Name
+        FETCH C_sumsheet_document INTO
+        :gostOra_DB_Rowid,
+        :golOra_DB_DocumentSize:gosOra_DB_DocumentSize_ind,
+        :gostOra_DB_SortCriteria:gosOra_DB_SortCriteria_ind,
+        :gostOra_DB_DateCreated:gosOra_DB_DateCreated_ind,
+        :golOra_DB_CustomerId:gosOra_DB_CustomerId_ind,
+        :gostOra_DB_BillInsCode:gosOra_DB_BillInsCode_ind;        
+    }
+  else
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_LoadTimmStr: Fetching record from cursor C_sumsheet_document_single\n");
+        }
+
+      EXEC SQL AT :gostOra_DB_Name
+        FETCH C_sumsheet_document_single INTO
+        :gostOra_DB_Rowid,
+        :golOra_DB_DocumentSize:gosOra_DB_DocumentSize_ind,
+        :gostOra_DB_SortCriteria:gosOra_DB_SortCriteria_ind,
+        :gostOra_DB_DateCreated:gosOra_DB_DateCreated_ind,
+        :golOra_DB_CustomerId:gosOra_DB_CustomerId_ind,
+        :gostOra_DB_BillInsCode:gosOra_DB_BillInsCode_ind;
+    }
+
+  if(sqlca.sqlcode != 0)
+    {
+      if(sqlca.sqlcode != SQL_NODATAFOUND)
+        {
+          rc = sqlca.sqlcode;
+          sprintf (message, "foiDB_LoadTimmStr: SQL-Error\n");
+          sqlerror (rc, message);
+       }
+      else /* no more data */
+        {
+          rc = ESQL_NOMOREDATA;
+          if (goenVerbose == TRUE)
+            {
+              fprintf(stderr, "No more data\n");
+            }
+        } 
+      
+      return rc;
+    } 
+
+  if (golOra_DB_DocumentSize <= 0)
+    {
+      return -1;
+    }
+
+  if (goenVerbose == TRUE)
+    {
+      STRCPY_FROM_ORA(lachzRowid, gostOra_DB_Rowid);
+      fprintf(stderr, "rowid: %s\n", lachzRowid);            
+      STRCPY_FROM_ORA(lachzSortCriteria, gostOra_DB_SortCriteria);
+      fprintf(stderr, "sort_criteria: %s\n", lachzSortCriteria);      
+      fprintf(stderr, "document_size: %d\n", golOra_DB_DocumentSize);             
+    }
+  
+  gpstDocument = (tostLongVarchar *)malloc(sizeof(int) + (golOra_DB_DocumentSize + 1) * sizeof(char));
+  if (gpstDocument == NULL)
+    {
+      return -1;
+    }
+  
+  gpstDocument->len = golOra_DB_DocumentSize;
+  *ppchzTimmStr = malloc((golOra_DB_DocumentSize + 1) * sizeof(char));
+  if (*ppchzTimmStr == NULL)
+    {
+      return -1;
+    }
+  
+  EXEC SQL AT :gostOra_DB_Name
+    SELECT document 
+    INTO :gpstDocument
+    FROM document_all
+    WHERE rowid = CHARTOROWID(:gostOra_DB_Rowid)
+    FOR UPDATE;
+  
+  if (sqlca.sqlcode != 0)
+    {
+      rc = sqlca.sqlcode;
+      sprintf (message, ": Could not select from C_sumsheet_document cursor");
+      sqlerror (rc, message);
+   }
+   else
+     {
+       if (goenVerbose == TRUE)
+         {
+           fprintf(stderr, "Selected from cursor\n");
+         }
+     }
+
+  /*
+  if (gpstDocument->len != golOra_DB_DocumentSize)
+    {
+      return -1;
+    }
+  */
+
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "Copy: %d\n", golOra_DB_DocumentSize);
+    }
+
+  memcpy(*ppchzTimmStr, gpstDocument->arr, golOra_DB_DocumentSize);
+
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "Set EOS at %d\n", golOra_DB_DocumentSize);
+    }
+  
+  (*ppchzTimmStr)[golOra_DB_DocumentSize] = '\0';
+  
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "Free DOC\n");
+    }  
+
+  free(gpstDocument);
+
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "DOC is free\n");
+    }  
+
+  return rc;
+}
+
+extern stPBGHGLOB gostPBGHEnv;
+
+int foiDB_UpdateDocumentAll(char *ppchzTimmStr)
+{
+  int rc = 0, i;
+  char lachzRowid[20];
+  static char lachzFileName[128];
+  FILE *lpfilTmp;
+
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "foiDB_UpdateDocumentAll: Updating DOCUMENT_ALL\n");
+    }
+
+  golOra_DB_DocumentSize = strlen(ppchzTimmStr);
+
+  gpstDocument = (tostLongVarchar *)malloc(sizeof(int) + (golOra_DB_DocumentSize + 1) * sizeof(char));
+  if (gpstDocument == NULL)
+    {
+      return -1;
+    }
+  
+  gpstDocument->len = golOra_DB_DocumentSize;
+  strcpy(gpstDocument->arr, ppchzTimmStr);
+ 
+  if (goenTestOnly == TRUE)
+    {      
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_UpdateDocumentAll: Test mode only for doc size: %d\n", golOra_DB_DocumentSize);
+        }
+      
+      STRCPY_FROM_ORA(lachzRowid, gostOra_DB_Rowid);
+      sprintf(lachzFileName, "%s/doc.%s.etis", gostPBGHEnv.szTmpDir, lachzRowid);
+      lpfilTmp = fopen(lachzFileName, "w");
+      if (lpfilTmp != NULL)
+        {
+          fputs(ppchzTimmStr,  lpfilTmp);
+          if (goenVerbose == TRUE)
+            {
+              fprintf(stderr, "foiDB_UpdateDocumentAll: Written : %d\n", golOra_DB_DocumentSize);
+            }
+          
+
+          fclose(lpfilTmp);
+        }      
+    }
+  else
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_UpdateDocumentAll: Trying to update with size : %d\n", golOra_DB_DocumentSize);
+        }
+      
+      EXEC SQL AT :gostOra_DB_Name
+        UPDATE document_all
+        SET document = :gpstDocument, document_size = :golOra_DB_DocumentSize, processed_by_bgh = 'P'
+        WHERE ROWID =  CHARTOROWID(:gostOra_DB_Rowid);
+      
+      if (sqlca.sqlcode == 0)
+        {
+          if (goenVerbose == TRUE)
+            {
+              fprintf(stderr, "foiDB_UpdateDocumentAll: OK\n");
+            }
+          
+          rc = 0;
+        }
+      else
+        {
+          rc = sqlca.sqlcode;
+          sprintf(message, "Update failed\n");
+          sqlerror(rc, message);
+        }
+    }
+
+  free(gpstDocument);
+  
+  return rc;
+}
+
+int foiDB_Accept()
+{
+  int rc = 0;
+
+  EXEC SQL AT :gostOra_DB_Name
+    UPDATE DOCUMENT_ALL SET PROCESSED_BY_BGH = NULL WHERE PROCESSED_BY_BGH = 'P';
+
+  if (sqlca.sqlcode == 0)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_Accept: OK\n");
+        }
+    }
+  else
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "Accepting work failed\n");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+
+int foiDB_CommitRelease()
+{
+  int rc = 0;
+
+  EXEC SQL AT :gostOra_DB_Name
+    COMMIT RELEASE;
+
+  if (sqlca.sqlcode == 0)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_Commit: OK\n");
+        }
+      
+      rc = 0;
+    }
+  else
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "Commit work failed\n");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+int foiDB_Commit()
+{
+  int rc = 0;
+
+  EXEC SQL AT :gostOra_DB_Name
+    COMMIT WORK;
+
+  if (sqlca.sqlcode == 0)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_Commit: OK\n");
+        }
+      
+      rc = 0;
+    }
+  else
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "Commit work failed\n");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+
+
+int foiDB_Rollback()
+{
+  int rc = 0;
+
+  EXEC SQL AT :gostOra_DB_Name
+    ROLLBACK WORK;
+
+  if (sqlca.sqlcode == 0)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "foiDB_Rollback: OK\n");
+        }
+      
+      rc = 0;
+    }
+  else
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "Rollback work failed\n");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+

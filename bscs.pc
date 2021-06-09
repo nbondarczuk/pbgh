@@ -1,0 +1,3511 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+static char *SCCS_VERSION = "1.0";
+
+
+void fovdPrintVerInfoBscs (void)
+{
+  printf ("%s\t\t\t%s\n", __FILE__, SCCS_VERSION);
+}
+
+#define SQLCA_INIT
+#define SQLCA_STORAGE_CLASS static
+
+EXEC SQL INCLUDE SQLCA;
+EXEC SQL INCLUDE ORACA;
+EXEC ORACLE OPTION (INCLUDE=./include);
+
+#include "pbgh.h"
+#include "bgh_esql.h"
+#include "mp.h"
+#include "gen.h"
+
+#define SQL_NODATAFOUND    1403
+
+static void sqlerror(int, char *);
+
+/*
+ * VARCHAR handling
+ */
+
+#define STRCPY_TO_ORA(dest, source)	\
+        {				\
+           (dest).len = strlen(source);	\
+           (void)memcpy((void*)(dest).arr, (void*)(source), (size_t)(dest).len); \
+	}
+#define STRCPY_FROM_ORA(dest, source)	\
+        { 				\
+          (void)memcpy((void*)(dest), (void*)(source).arr, (size_t)(source).len); \
+          (dest)[(source).len] = '\0';	\
+	}
+
+/*
+ * Global variables
+ */
+
+double goflUPAir, goflUPInterc;
+extern toenBool goenVerbose;
+
+/*
+ * DB access 
+ */
+ 
+EXEC SQL BEGIN DECLARE SECTION;
+
+VARCHAR       O_username[50];
+VARCHAR       O_password[50];
+VARCHAR       O_db_name[50];
+VARCHAR       O_connect_string[50];
+
+VARCHAR       O_rtx_db_name[21];
+VARCHAR       O_name_rtx_server[21];
+VARCHAR       O_tab_owner[21];
+
+short         O_rtx_db_name_ind;
+short         O_name_rtx_server_ind; 
+short         O_tab_owner_ind;
+
+VARCHAR       O_cfvalue[129];
+
+long          T_count;
+long          O_code;
+VARCHAR       O_des[71];
+VARCHAR       O_shdes[7];
+
+VARCHAR       O_custcode[64];
+
+long    O_mpulkrim_tmcode;
+long    O_mpulkrim_spcode;
+long    O_mpulkrim_sncode;
+
+long    O_mpulkrim_ricode;
+long    O_mpulkrim_vscode;
+VARCHAR O_mpulkrim_vsdate[7];
+long    O_mpulkrim_gvcode;
+long    O_mpulkrim_gvvscode;
+long    O_mpulkrim_zncode;
+long    O_mpulkrim_twcode;
+long    O_mpulkrim_twvscode;
+long    O_mpulkrim_ttcode;
+char    O_mpulkrim_rndind;
+char    O_mpulkrim_splitind;
+char    O_mpulkrim_typeind;
+long    O_mpulkrim_umcode;
+
+double  O_mpulkrim_il01;
+double  O_mpulkrim_ir01;
+long    O_mpulkrim_im01;
+double  O_mpulkrim_ic01;
+
+double  O_mpulkrim_il02;
+double  O_mpulkrim_ir02;
+long    O_mpulkrim_im02;
+double  O_mpulkrim_ic02;
+
+double  O_mpulkrim_il03;
+double  O_mpulkrim_ir03;
+long    O_mpulkrim_im03;
+double  O_mpulkrim_ic03;
+
+double  O_mpulkrim_il04;
+double  O_mpulkrim_ir04;
+long    O_mpulkrim_im04;
+double  O_mpulkrim_ic04;
+
+double  O_mpulkrim_il05;
+double  O_mpulkrim_ir05;
+long    O_mpulkrim_im05;
+double  O_mpulkrim_ic05;
+
+double  O_mpulkrim_il06;
+double  O_mpulkrim_ir06;
+long    O_mpulkrim_im06;
+double  O_mpulkrim_ic06;
+
+double  O_mpulkrim_il07;
+double  O_mpulkrim_ir07;
+long    O_mpulkrim_im07;
+double  O_mpulkrim_ic07;
+
+double  O_mpulkrim_il08;
+double  O_mpulkrim_ir08;
+long    O_mpulkrim_im08;
+double  O_mpulkrim_ic08;
+
+double  O_mpulkrim_il09;
+double  O_mpulkrim_ir09;
+long    O_mpulkrim_im09;
+double  O_mpulkrim_ic09;
+
+double  O_mpulkrim_il10;
+double  O_mpulkrim_ir10;
+long    O_mpulkrim_im10;
+double  O_mpulkrim_ic10;
+
+short        O_mpulkrim_il01_ind;
+short        O_mpulkrim_ir01_ind;
+short        O_mpulkrim_im01_ind;
+short        O_mpulkrim_ic01_ind;
+
+short        O_mpulkrim_il02_ind;
+short        O_mpulkrim_ir02_ind;
+short        O_mpulkrim_im02_ind;
+short        O_mpulkrim_ic02_ind;
+
+short        O_mpulkrim_il03_ind;
+short        O_mpulkrim_ir03_ind;
+short        O_mpulkrim_im03_ind;
+short        O_mpulkrim_ic03_ind;
+
+short        O_mpulkrim_il04_ind;
+short        O_mpulkrim_ir04_ind;
+short        O_mpulkrim_im04_ind;
+short        O_mpulkrim_ic04_ind;
+
+short        O_mpulkrim_il05_ind;
+short        O_mpulkrim_ir05_ind;
+short        O_mpulkrim_im05_ind;
+short        O_mpulkrim_ic05_ind;
+
+short        O_mpulkrim_il06_ind;
+short        O_mpulkrim_ir06_ind;
+short        O_mpulkrim_im06_ind;
+short        O_mpulkrim_ic06_ind;
+
+short        O_mpulkrim_il07_ind;
+short        O_mpulkrim_ir07_ind;
+short        O_mpulkrim_im07_ind;
+short        O_mpulkrim_ic07_ind;
+
+short        O_mpulkrim_il08_ind;
+short        O_mpulkrim_ir08_ind;
+short        O_mpulkrim_im08_ind;
+short        O_mpulkrim_ic08_ind;
+
+short        O_mpulkrim_il09_ind;
+short        O_mpulkrim_ir09_ind;
+short        O_mpulkrim_im09_ind;
+short        O_mpulkrim_ic09_ind;
+
+short        O_mpulkrim_il10_ind;
+short        O_mpulkrim_ir10_ind;
+short        O_mpulkrim_im10_ind;
+short        O_mpulkrim_ic10_ind;
+
+VARCHAR       O_tm_shdes[6];
+long          O_tm_vscode;
+VARCHAR       O_sp_shdes[6];
+VARCHAR       O_sn_shdes[6];
+char          O_rim_typeind;
+long          O_rim_vscode;
+VARCHAR       O_tt_shdes[6];
+VARCHAR       O_tz_shdes[6];
+
+long          O_mpulktmm_tmcode;
+short         O_mpulktmm_tmcode_ind;
+long          O_mpulktmm_vscode;
+short         O_mpulktmm_vscode_ind;
+VARCHAR       O_mpulktmm_vsdate[7];
+short         O_mpulktmm_vsdate_ind;
+long          O_mpulktmm_spcode;
+short         O_mpulktmm_spcode_ind;
+long          O_mpulktmm_sncode;
+short         O_mpulktmm_sncode_ind;
+char          O_mpulktmm_usgind;
+short         O_mpulktmm_usgind_ind;
+char          O_mpulktmm_rateind;
+short         O_mpulktmm_rateind_ind;
+long          O_mpulktmm_ricode;
+short         O_mpulktmm_ricode_ind;
+long          O_mpulktmm_evcode;
+short         O_mpulktmm_evcode_ind;
+long          O_mpulktmm_egcode;
+short         O_mpulktmm_egcode_ind;
+long          O_mpulktmm_fucode;
+short         O_mpulktmm_fucode_ind;
+long          O_mpulktmm_ppcode;
+short         O_mpulktmm_ppcode_ind;
+
+/*
+ * MPULKEVM
+ */
+
+long          O_evm_vscode;
+long          O_mpulkevm_tmcode;
+long          O_mpulkevm_spcode;
+long          O_mpulkevm_sncode;
+
+long          O_mpulkevm_evcode;
+long          O_mpulkevm_vscode;
+VARCHAR       O_mpulkevm_vsdate[7];
+long          O_mpulkevm_twcode;
+long          O_mpulkevm_twvscode;
+long          O_mpulkevm_ttcode;
+long          O_mpulkevm_umcode;
+
+double        O_mpulkevm_ev_reg;
+double        O_mpulkevm_ev_act;
+double        O_mpulkevm_ev_dea;
+double        O_mpulkevm_ev_int;
+double        O_mpulkevm_ev_inv;
+double        O_mpulkevm_ev_era;
+double        O_mpulkevm_ev_pwc;
+
+
+/*
+ * MPUSNTAB
+ */
+
+long    O_mpusntab_sncode;
+VARCHAR O_mpusntab_des[31];
+VARCHAR O_mpusntab_shdes[6];
+char    O_mpusntab_snind;
+char    O_mpusntab_network_snind;
+long    O_mpusntab_sccode;
+
+short   O_mpusntab_sncode_ind;
+short   O_mpusntab_des_ind;
+short   O_mpusntab_shdes_ind;
+short   O_mpusntab_snind_ind;
+short   O_mpusntab_network_snind_ind;
+short   O_mpusntab_sccode_ind;
+
+/*
+ * MPUPUTAB
+ */
+
+VARCHAR O_mpuputab_shdes[6];
+long    O_mpuputab_tmcode;
+VARCHAR O_mpuputab_vsdate[7];
+VARCHAR O_mpuputab_vsenddate[7];
+double  O_mpuputab_ppuic;
+double  O_mpuputab_ppuair;
+
+short   O_mpuputab_shdes_ind;
+short   O_mpuputab_tmcode_ind;
+short   O_mpuputab_vsdate_ind;
+short   O_mpuputab_vsenddate_ind;
+short   O_mpuputab_ppuic_ind;
+short   O_mpuputab_ppuair_ind;
+
+/*
+ * MPUPNTAB 
+ */
+
+long    O_mpupntab_zpcode;
+VARCHAR O_mpupntab_digits[19];
+long    O_mpupntab_andigits;
+long    O_mpupntab_tmcode;
+VARCHAR O_mpupntab_tmshdes[6];
+long    O_mpupntab_spcode;
+VARCHAR O_mpupntab_spshdes[6];
+long    O_mpupntab_sncode;
+VARCHAR O_mpupntab_snshdes[6];
+VARCHAR O_mpupntab_svlcode[17];
+char    O_mpupntab_spnflag;
+VARCHAR O_mpupntab_vsdate[7];
+char    O_mpupntab_anychar;
+char    O_mpupntab_fuomspn;
+char    O_mpupntab_status;
+char    O_mpupntab_des[31];
+
+short   O_mpupntab_zpcode_ind;
+short   O_mpupntab_digits_ind;
+short   O_mpupntab_andigits_ind;
+short   O_mpupntab_tmcode_ind;
+short   O_mpupntab_tmshdes_ind;
+short   O_mpupntab_spcode_ind;
+short   O_mpupntab_spshdes_ind;
+short   O_mpupntab_sncode_ind;
+short   O_mpupntab_snshdes_ind;
+short   O_mpupntab_svlcode_ind;
+short   O_mpupntab_spnflag_ind;
+short   O_mpupntab_vsdate_ind;
+short   O_mpupntab_anychar_ind;
+short   O_mpupntab_fuomspn_ind;
+short   O_mpupntab_status_ind;
+short   O_mpupntab_des_ind;
+
+
+
+/*
+ * MPUFFTAB
+ */
+
+long    O_mpufftab_ffcode;
+long    O_mpufftab_co_id;
+VARCHAR O_mpufftab_des[21];
+short   O_mpufftab_des_ind;
+VARCHAR O_mpufftab_shdes[7];
+short   O_mpufftab_shdes_ind;
+
+double  O_mpufftab_scalefactor;
+
+EXEC SQL END DECLARE SECTION;
+
+/*
+ * MPUFFTAB
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_mpufftab CURSOR FOR
+SELECT FFCODE, CO_ID, DES, SHDES, SCALEFACTOR
+FROM
+MPUFFTAB;
+
+/*
+ * RINTERVAL
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_rinterval CURSOR FOR
+SELECT 
+TMM.TMCODE, TMM.SPCODE, TMM.SNCODE, RIM.ZNCODE, RIM.TTCODE,
+RIM.IL01, RIM.IR01, RIM.IM01, RIM.IC01,
+RIM.IL02, RIM.IR02, RIM.IM02, RIM.IC02,
+RIM.IL03, RIM.IR03, RIM.IM03, RIM.IC03,
+RIM.IL04, RIM.IR04, RIM.IM04, RIM.IC04,
+RIM.IL05, RIM.IR05, RIM.IM05, RIM.IC05,
+RIM.IL06, RIM.IR06, RIM.IM06, RIM.IC06,
+RIM.IL07, RIM.IR07, RIM.IM07, RIM.IC07,
+RIM.IL08, RIM.IR08, RIM.IM08, RIM.IC08,
+RIM.IL09, RIM.IR09, RIM.IM09, RIM.IC09,
+RIM.IL10, RIM.IR10, RIM.IM10, RIM.IC10
+FROM
+MPULKRIM RIM,
+MPUTTTAB TT,
+MPUZNTAB ZN,
+MPURITAB RI,
+MPULKTMM TMM,
+MPUTMTAB TM,
+MPUSNTAB SN,
+MPUSPTAB SP
+WHERE
+TMM.TMCODE = TM.TMCODE 
+AND TMM.VSCODE = TM.VSCODE
+AND TM.SHDES = :O_tm_shdes
+AND TM.VSCODE = :O_tm_vscode
+AND TMM.SPCODE = SP.SPCODE
+AND SP.SHDES = :O_sp_shdes
+AND TMM.SNCODE = SN.SNCODE
+AND SN.SHDES = :O_sn_shdes
+AND TMM.STATUS = 'P'
+AND RIM.TYPEIND = :O_rim_typeind
+AND RIM.VSCODE = :O_rim_vscode
+AND RI.RICODE = TMM.RICODE
+AND RI.RICODE = RIM.RICODE 
+AND RIM.TTCODE = TT.TTCODE
+AND TT.SHDES = :O_tt_shdes
+AND RIM.ZNCODE = ZN.ZNCODE 
+AND ZN.SHDES = :O_tz_shdes;
+
+
+/*
+ * RINTERVAL_NOTTTZ
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_rinterval_notttz CURSOR FOR
+SELECT 
+TMM.TMCODE, TMM.SPCODE, TMM.SNCODE, RIM.ZNCODE, RIM.TTCODE,
+RIM.IL01, RIM.IR01, RIM.IM01, RIM.IC01,
+RIM.IL02, RIM.IR02, RIM.IM02, RIM.IC02,
+RIM.IL03, RIM.IR03, RIM.IM03, RIM.IC03,
+RIM.IL04, RIM.IR04, RIM.IM04, RIM.IC04,
+RIM.IL05, RIM.IR05, RIM.IM05, RIM.IC05,
+RIM.IL06, RIM.IR06, RIM.IM06, RIM.IC06,
+RIM.IL07, RIM.IR07, RIM.IM07, RIM.IC07,
+RIM.IL08, RIM.IR08, RIM.IM08, RIM.IC08,
+RIM.IL09, RIM.IR09, RIM.IM09, RIM.IC09,
+RIM.IL10, RIM.IR10, RIM.IM10, RIM.IC10
+FROM
+MPULKRIM RIM,
+MPUTTTAB TT,
+MPUZNTAB ZN,
+MPURITAB RI,
+MPULKTMM TMM,
+MPUTMTAB TM,
+MPUSNTAB SN,
+MPUSPTAB SP
+WHERE
+TMM.TMCODE = TM.TMCODE 
+AND TMM.VSCODE = TM.VSCODE
+AND TM.SHDES = :O_tm_shdes
+AND TM.VSCODE = :O_tm_vscode
+AND TMM.SPCODE = SP.SPCODE
+AND SP.SHDES = :O_sp_shdes
+AND TMM.SNCODE = SN.SNCODE
+AND SN.SHDES = :O_sn_shdes
+AND TMM.STATUS = 'P'
+AND RIM.TYPEIND = :O_rim_typeind
+AND RIM.VSCODE = :O_rim_vscode
+AND RI.RICODE = TMM.RICODE
+AND RI.RICODE = RIM.RICODE; 
+
+/*
+ * EVENT_PRICE
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_event_price CURSOR FOR
+SELECT TMM.TMCODE, TMM.SPCODE, TMM.SNCODE, EVM.TTCODE,
+  EVM.EV_REG, EVM.EV_ACT, EVM.EV_DEA, EVM.EV_INT, EVM.EV_INV, EVM.EV_ERA, EVM.EV_PWC
+FROM MPULKEVM EVM,
+  MPUTTTAB TT,
+  MPULKTMM TMM,
+  MPUTMTAB TM,
+  MPUSNTAB SN,
+  MPUSPTAB SP
+WHERE TMM.TMCODE = TM.TMCODE 
+AND TMM.VSCODE = TM.VSCODE
+AND TM.SHDES = :O_tm_shdes
+AND TM.VSCODE = :O_tm_vscode
+AND TMM.SPCODE = SP.SPCODE
+AND SP.SHDES = :O_sp_shdes
+AND TMM.SNCODE = SN.SNCODE
+AND SN.SHDES = :O_sn_shdes
+AND TMM.STATUS = 'P'
+AND EVM.VSCODE = :O_evm_vscode
+AND EVM.EVCODE = TMM.EVCODE
+AND EVM.TTCODE = TT.TTCODE
+AND TT.SHDES = :O_tt_shdes;
+
+/*
+ * EVENT_PRICE_NOTT
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_event_price_nott CURSOR FOR
+SELECT TMM.TMCODE, TMM.SPCODE, TMM.SNCODE, EVM.TTCODE,
+  EVM.EV_REG, EVM.EV_ACT, EVM.EV_DEA, EVM.EV_INT, EVM.EV_INV, EVM.EV_ERA, EVM.EV_PWC
+FROM MPULKEVM EVM,
+  MPULKTMM TMM,
+  MPUTMTAB TM,
+  MPUSNTAB SN,
+  MPUSPTAB SP
+WHERE TMM.TMCODE = TM.TMCODE 
+AND TMM.VSCODE = TM.VSCODE
+AND TM.SHDES = :O_tm_shdes
+AND TM.VSCODE = :O_tm_vscode
+AND TMM.SPCODE = SP.SPCODE
+AND SP.SHDES = :O_sp_shdes
+AND TMM.SNCODE = SN.SNCODE
+AND SN.SHDES = :O_sn_shdes
+AND TMM.STATUS = 'P'
+AND EVM.VSCODE = :O_evm_vscode
+AND EVM.EVCODE = TMM.EVCODE;
+
+
+/*
+ *  MPUSNTAB
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_mpusntab CURSOR FOR
+SELECT SN.SNCODE, SN.DES, SN.SHDES, SN.SNIND, NXC.SNIND, NXC.SCCODE
+FROM MPUSNTAB SN, MPULKNXC NXC 
+WHERE SN.SNCODE = NXC.SNCODE
+ORDER BY SHDES, NXC.SCCODE;
+
+
+/*
+ * MPUPUTAB
+ */
+
+/*
+EXEC SQL AT :O_db_name
+DECLARE C_mpuputab CURSOR FOR
+SELECT PU.TMCODE, TO_DATE(PU.VSDATE, 'yymmdd'), TO_DATE(PU.VSENDDATE, 'yymmdd'), PU.PPUIC, PU.PPUAIR
+FROM MPUPUTAB PU
+ORDER BY PU.TMCODE, PU.VSDATE;
+*/
+
+EXEC SQL AT :O_db_name
+DECLARE C_mpuputab CURSOR FOR
+SELECT TMCODE, PPUIC, PPUAIR
+FROM MPUPUTAB
+ORDER BY TMCODE ASC, VSDATE DESC;
+
+
+/*
+ * MPUPNTAB
+ */
+
+EXEC SQL AT :O_db_name
+DECLARE C_mpupntab CURSOR FOR
+SELECT PN.ZPCODE, PN.ANDIGITS, PN.TMCODE, TM.SHDES, PN.SPCODE, SP.SHDES, PN.SNCODE, SN.SHDES,
+PN.SVLCODE, PN.SPNFLAG, PN.VSDATE, PN.ANYCHAR, PN.FUOMSPN, PN.STATUS, PN.DES 
+FROM MPUPNTAB PN, MPUZPTAB ZP, MPUTMTAB TM, MPUSPTAB SP, MPUSNTAB SN
+WHERE PN.ZPCODE = ZP.ZPCODE
+AND PN.TMCODE = TM.TMCODE
+AND PN.SPCODE = SP.SPCODE
+AND PN.SNCODE = SN.SNCODE;
+
+/*
+ * MPUZNTAB
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpuzntab_des CURSOR FOR
+     SELECT  zncode,
+             des, 
+             shdes
+       FROM  mpuzntab
+   ORDER BY  shdes;
+
+/*
+ * MPUTTTAB
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mputttab_des CURSOR FOR
+     SELECT  ttcode,
+             des, 
+             shdes
+       FROM  mputttab
+   ORDER BY  shdes;
+
+/*
+ * MPUTMTAB
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mputmtab_des CURSOR FOR
+     SELECT  tmcode,
+             des, 
+             shdes
+       FROM  mputmtab
+   ORDER BY  shdes;
+
+/*
+ * MPUSPTAB
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpusptab_des CURSOR FOR
+     SELECT  spcode,
+             des, 
+             shdes
+       FROM  mpusptab
+   ORDER BY  shdes;
+
+/*
+ * MPUSNTAB
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpusntab_des CURSOR FOR
+     SELECT  sncode,
+             des, 
+             shdes
+       FROM  mpusntab
+   ORDER BY  shdes;
+
+/*
+ * MPULKTMM
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpulktmm_tab CURSOR FOR
+     SELECT  TMCODE,
+             VSCODE,
+             VSDATE,
+             SPCODE,
+             SNCODE,
+             USGIND,
+             RATEIND,
+             RICODE,
+             EVCODE,
+             EGCODE,
+             FUCODE,
+             PPCODE
+       FROM  MPULKTMM
+      WHERE  STATUS = 'P'
+   ORDER BY  TMCODE,
+             VSCODE,
+             SPCODE,
+             SNCODE;
+
+/*
+ * MPULKRIM
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpulkrim_tab CURSOR FOR
+      SELECT RICODE,
+             VSCODE,
+             VSDATE,
+             GVCODE,
+             GVVSCODE,
+             ZNCODE,
+             TWCODE,
+             TWVSCODE,
+             TTCODE,
+             TYPEIND,
+             RNDIND,
+             SPLITIND,
+             UMCODE,
+             IL01, IR01, IM01, IC01,
+             IL02, IR02, IM02, IC02,
+             IL03, IR03, IM03, IC03,
+             IL04, IR04, IM04, IC04,
+             IL05, IR05, IM05, IC05,
+             IL06, IR06, IM06, IC06,
+             IL07, IR07, IM07, IC07,
+             IL08, IR08, IM08, IC08,
+             IL09, IR09, IM09, IC09,
+             IL10, IR10, IM10, IC10
+        FROM MPULKRIM
+    ORDER BY RICODE, 
+             VSCODE;
+
+/*
+ * MPULKEVM
+ */
+
+EXEC SQL AT  :O_db_name
+    DECLARE  C_mpulkevm_tab CURSOR FOR
+      SELECT evcode,
+             vscode,
+             vsdate,
+             twcode,
+             twvscode,
+             ttcode,
+             umcode,
+             ev_reg,
+             ev_act,
+             ev_dea,
+             ev_int,
+             ev_inv,
+             ev_era,
+             ev_pwc
+       FROM  MPULKEVM
+   ORDER BY  EVCODE,
+             VSCODE;
+
+
+/*
+ * Module state vector
+ */
+
+static int goenConnected = FALSE;
+static char message[1000];
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPURIMM           table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+int fnGetTTTZRatingInterval(char *pachzTmShdes,
+                            char *pachzTmVer,
+                            char *pachzSpShdes,
+                            char *pachzSnShdes,
+                            char *pachzTypeind,
+                            char *pachzRimVer,
+                            char *pachzTtShdes,
+                            char *pachzTzShdes, 
+                            tostRatingInterval *pastRI,
+                            tostUsageItem *postUI)
+{
+  int  rc = 0;
+  double loflUP;
+
+  /*
+  fprintf(stderr, "fnGetRatingInterval: %s,%s,%s,%s,%s,%s,%s,%s\n", 
+          pachzTmShdes,
+          pachzTmVer,
+          pachzSpShdes,
+          pachzSnShdes,
+          pachzTypeind,
+          pachzRimVer,
+          pachzTtShdes,
+          pachzTzShdes);
+  */
+
+  if (pachzTypeind[0] == 'I' || pachzTypeind[0] == 'L')
+    {
+      loflUP = goflUPInterc;
+    }
+  else
+    {
+      loflUP = goflUPAir;
+    }
+
+  STRCPY_TO_ORA(O_tm_shdes, pachzTmShdes);
+  O_tm_vscode = atoi(pachzTmVer);
+  STRCPY_TO_ORA(O_sp_shdes, pachzSpShdes);
+  STRCPY_TO_ORA(O_sn_shdes, pachzSnShdes);
+  O_rim_typeind = pachzTypeind[0];
+  O_rim_vscode = atoi(pachzRimVer);
+  STRCPY_TO_ORA(O_tt_shdes, pachzTtShdes);
+  STRCPY_TO_ORA(O_tz_shdes, pachzTzShdes);
+
+  EXEC SQL AT :O_db_name
+    SELECT 
+    TMM.TMCODE, TMM.SPCODE, TMM.SNCODE, RIM.ZNCODE, RIM.TTCODE,    
+    RIM.IL01, RIM.IR01, RIM.IM01, RIM.IC01,
+    RIM.IL02, RIM.IR02, RIM.IM02, RIM.IC02,
+    RIM.IL03, RIM.IR03, RIM.IM03, RIM.IC03,
+    RIM.IL04, RIM.IR04, RIM.IM04, RIM.IC04,
+    RIM.IL05, RIM.IR05, RIM.IM05, RIM.IC05,
+    RIM.IL06, RIM.IR06, RIM.IM06, RIM.IC06,
+    RIM.IL07, RIM.IR07, RIM.IM07, RIM.IC07,
+    RIM.IL08, RIM.IR08, RIM.IM08, RIM.IC08,
+    RIM.IL09, RIM.IR09, RIM.IM09, RIM.IC09,
+    RIM.IL10, RIM.IR10, RIM.IM10, RIM.IC10
+    INTO
+    :O_mpulkrim_tmcode,
+    :O_mpulkrim_spcode,
+    :O_mpulkrim_sncode,
+    :O_mpulkrim_zncode,
+    :O_mpulkrim_ttcode,
+    :O_mpulkrim_il01,
+    :O_mpulkrim_ir01,
+    :O_mpulkrim_im01,
+    :O_mpulkrim_ic01,
+    :O_mpulkrim_il02,
+    :O_mpulkrim_ir02,
+    :O_mpulkrim_im02,
+    :O_mpulkrim_ic02,
+    :O_mpulkrim_il03,
+    :O_mpulkrim_ir03,
+    :O_mpulkrim_im03,
+    :O_mpulkrim_ic03,
+    :O_mpulkrim_il04,
+    :O_mpulkrim_ir04,
+    :O_mpulkrim_im04,
+    :O_mpulkrim_ic04,
+    :O_mpulkrim_il05,
+    :O_mpulkrim_ir05,
+    :O_mpulkrim_im05,
+    :O_mpulkrim_ic05,
+    :O_mpulkrim_il06,
+    :O_mpulkrim_ir06,
+    :O_mpulkrim_im06,
+    :O_mpulkrim_ic06,
+    :O_mpulkrim_il07,
+    :O_mpulkrim_ir07,
+    :O_mpulkrim_im07,
+    :O_mpulkrim_ic07,
+    :O_mpulkrim_il08,
+    :O_mpulkrim_ir08,
+    :O_mpulkrim_im08,
+    :O_mpulkrim_ic08,
+    :O_mpulkrim_il09,
+    :O_mpulkrim_ir09,
+    :O_mpulkrim_im09,
+    :O_mpulkrim_ic09,
+    :O_mpulkrim_il10,
+    :O_mpulkrim_ir10,
+    :O_mpulkrim_im10,
+    :O_mpulkrim_ic10
+    FROM
+    MPUTMTAB TM,
+    MPULKRIM RIM,
+    MPUTTTAB TT,
+    MPURITAB RI,
+    MPULKTMM TMM,
+    MPUSNTAB SN,
+    MPUSPTAB SP,
+    MPUZNTAB ZN
+    WHERE
+    TMM.TMCODE = TM.TMCODE 
+    AND TMM.VSCODE = TM.VSCODE
+    AND TM.SHDES = :O_tm_shdes
+    AND TM.VSCODE = :O_tm_vscode
+    AND TMM.SPCODE = SP.SPCODE
+    AND SP.SHDES = :O_sp_shdes
+    AND TMM.SNCODE = SN.SNCODE
+    AND SN.SHDES = :O_sn_shdes
+    AND TMM.STATUS = 'P'
+    AND RIM.TYPEIND = :O_rim_typeind
+    AND RIM.VSCODE = :O_rim_vscode
+    AND RI.RICODE = TMM.RICODE
+    AND RI.RICODE = RIM.RICODE
+    AND RIM.TTCODE = TT.TTCODE
+    AND TT.SHDES = :O_tt_shdes
+    AND RIM.ZNCODE = ZN.ZNCODE 
+    AND ZN.SHDES = :O_tz_shdes;
+    
+  switch (sqlca.sqlcode) 
+    {
+    case 0:			/* succesful read entry */      
+      FILL_RI(pastRI[0], O_mpulkrim_il01, O_mpulkrim_ir01, O_mpulkrim_im01, O_mpulkrim_ic01 * loflUP);
+      FILL_RI(pastRI[1], O_mpulkrim_il02, O_mpulkrim_ir02, O_mpulkrim_im02, O_mpulkrim_ic02 * loflUP);
+      FILL_RI(pastRI[2], O_mpulkrim_il03, O_mpulkrim_ir03, O_mpulkrim_im03, O_mpulkrim_ic03 * loflUP);
+      FILL_RI(pastRI[3], O_mpulkrim_il04, O_mpulkrim_ir04, O_mpulkrim_im04, O_mpulkrim_ic04 * loflUP);
+      FILL_RI(pastRI[4], O_mpulkrim_il05, O_mpulkrim_ir05, O_mpulkrim_im05, O_mpulkrim_ic05 * loflUP);
+      FILL_RI(pastRI[5], O_mpulkrim_il06, O_mpulkrim_ir06, O_mpulkrim_im06, O_mpulkrim_ic06 * loflUP);
+      FILL_RI(pastRI[6], O_mpulkrim_il07, O_mpulkrim_ir07, O_mpulkrim_im07, O_mpulkrim_ic07 * loflUP);
+      FILL_RI(pastRI[7], O_mpulkrim_il08, O_mpulkrim_ir08, O_mpulkrim_im08, O_mpulkrim_ic08 * loflUP);
+      FILL_RI(pastRI[8], O_mpulkrim_il09, O_mpulkrim_ir09, O_mpulkrim_im09, O_mpulkrim_ic09 * loflUP);
+      FILL_RI(pastRI[9], O_mpulkrim_il10, O_mpulkrim_ir10, O_mpulkrim_im10, O_mpulkrim_ic10 * loflUP);
+      
+      postUI->solTMCODE = O_mpulkrim_tmcode;
+      postUI->solSPCODE = O_mpulkrim_spcode;
+      postUI->solSNCODE = O_mpulkrim_sncode;
+      postUI->solZNCODE = O_mpulkrim_zncode;
+      postUI->solTTCODE = O_mpulkrim_ttcode;
+
+      break;
+            
+    case SQL_NODATAFOUND:	/* read whole table */
+      printf("No data for Rating Interval\n");
+      rc = ESQL_NOMOREDATA;
+      break;
+      
+    default:			/* some error */
+      rc = ESQL_ERROR;
+      sqlerror (rc, "fnGetRatingInterval: SQL-Error for 'MPULKRIM'\n");
+      break;
+    }
+
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPURIMM           table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+ 
+int fnGetNoTTTZRatingInterval(
+                              char *pachzTmShdes,
+                              char *pachzTmVer,
+                              char *pachzSpShdes,
+                              char *pachzSnShdes,
+                              char *pachzTypeind,
+                              char *pachzRimVer,
+                              tostRatingInterval *pastRI,
+                              tostUsageItem *postUI
+                              )
+{
+  int  rc = 0, i;
+  double loflUP;
+
+  /*
+  printf("fnGetNoTTTZRatingInterval:%s,%s,%s,%s,%s,%s\n", 
+         pachzTmShdes,
+         pachzTmVer,
+         pachzSpShdes,
+         pachzSnShdes,
+         pachzTypeind,
+         pachzRimVer);
+  */
+  
+
+  if (pachzTypeind[0] == 'I')
+    {
+      loflUP = goflUPInterc;
+    }
+  else
+    {
+      loflUP = goflUPAir;
+    }
+
+  STRCPY_TO_ORA(O_tm_shdes, pachzTmShdes);
+  O_tm_vscode = atoi(pachzTmVer);
+  STRCPY_TO_ORA(O_sp_shdes, pachzSpShdes);
+  STRCPY_TO_ORA(O_sn_shdes, pachzSnShdes);
+  O_rim_typeind = pachzTypeind[0];
+  O_rim_vscode = atoi(pachzRimVer);
+
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*)
+    INTO :T_count
+    FROM
+    MPULKRIM RIM,
+    MPURITAB RI,
+    MPULKTMM TMM,
+    MPUTMTAB TM,
+    MPUSNTAB SN,
+    MPUSPTAB SP
+    WHERE
+    TMM.TMCODE = TM.TMCODE 
+    AND TMM.VSCODE = TM.VSCODE
+    AND TM.SHDES = :O_tm_shdes
+    AND TM.VSCODE = :O_tm_vscode
+    AND TMM.SPCODE = SP.SPCODE
+    AND SP.SHDES = :O_sp_shdes
+    AND TMM.SNCODE = SN.SNCODE
+    AND SN.SHDES = :O_sn_shdes
+    AND TMM.STATUS = 'P'
+    AND RIM.TYPEIND = :O_rim_typeind
+    AND RIM.VSCODE = :O_rim_vscode
+    AND RI.RICODE = TMM.RICODE
+    AND RI.RICODE = RIM.RICODE; 
+
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, ": Selected count(*) on MPULKRIMM failed.");
+      sqlerror (rc, message);
+    }
+
+  /*
+  printf("Selected : %d\n", T_count);
+  */
+
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL AT :O_db_name OPEN C_rinterval_notttz;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;          
+          sprintf (message, ": Could not open C_mpulkrimm_notttz cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          EXEC SQL FETCH C_rinterval_notttz
+            INTO
+            :O_mpulkrim_tmcode,
+            :O_mpulkrim_spcode,
+            :O_mpulkrim_sncode,
+            :O_mpulkrim_zncode,
+            :O_mpulkrim_ttcode,
+            :O_mpulkrim_il01,
+            :O_mpulkrim_ir01,
+            :O_mpulkrim_im01,
+            :O_mpulkrim_ic01,
+            :O_mpulkrim_il02,
+            :O_mpulkrim_ir02,
+            :O_mpulkrim_im02,
+            :O_mpulkrim_ic02,
+            :O_mpulkrim_il03,
+            :O_mpulkrim_ir03,
+            :O_mpulkrim_im03,
+            :O_mpulkrim_ic03,
+            :O_mpulkrim_il04,
+            :O_mpulkrim_ir04,
+            :O_mpulkrim_im04,
+            :O_mpulkrim_ic04,
+            :O_mpulkrim_il05,
+            :O_mpulkrim_ir05,
+            :O_mpulkrim_im05,
+            :O_mpulkrim_ic05,
+            :O_mpulkrim_il06,
+            :O_mpulkrim_ir06,
+            :O_mpulkrim_im06,
+            :O_mpulkrim_ic06,
+            :O_mpulkrim_il07,
+            :O_mpulkrim_ir07,
+            :O_mpulkrim_im07,
+            :O_mpulkrim_ic07,
+            :O_mpulkrim_il08,
+            :O_mpulkrim_ir08,
+            :O_mpulkrim_im08,
+            :O_mpulkrim_ic08,
+            :O_mpulkrim_il09,
+            :O_mpulkrim_ir09,
+            :O_mpulkrim_im09,
+            :O_mpulkrim_ic09,
+            :O_mpulkrim_il10,
+            :O_mpulkrim_ir10,
+            :O_mpulkrim_im10,
+            :O_mpulkrim_ic10;
+                      
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              FILL_RI(pastRI[0], O_mpulkrim_il01, O_mpulkrim_ir01, O_mpulkrim_im01, O_mpulkrim_ic01 * loflUP);
+              FILL_RI(pastRI[1], O_mpulkrim_il02, O_mpulkrim_ir02, O_mpulkrim_im02, O_mpulkrim_ic02 * loflUP);
+              FILL_RI(pastRI[2], O_mpulkrim_il03, O_mpulkrim_ir03, O_mpulkrim_im03, O_mpulkrim_ic03 * loflUP);
+              FILL_RI(pastRI[3], O_mpulkrim_il04, O_mpulkrim_ir04, O_mpulkrim_im04, O_mpulkrim_ic04 * loflUP);
+              FILL_RI(pastRI[4], O_mpulkrim_il05, O_mpulkrim_ir05, O_mpulkrim_im05, O_mpulkrim_ic05 * loflUP);
+              FILL_RI(pastRI[5], O_mpulkrim_il06, O_mpulkrim_ir06, O_mpulkrim_im06, O_mpulkrim_ic06 * loflUP);
+              FILL_RI(pastRI[6], O_mpulkrim_il07, O_mpulkrim_ir07, O_mpulkrim_im07, O_mpulkrim_ic07 * loflUP);
+              FILL_RI(pastRI[7], O_mpulkrim_il08, O_mpulkrim_ir08, O_mpulkrim_im08, O_mpulkrim_ic08 * loflUP);
+              FILL_RI(pastRI[8], O_mpulkrim_il09, O_mpulkrim_ir09, O_mpulkrim_im09, O_mpulkrim_ic09 * loflUP);
+              FILL_RI(pastRI[9], O_mpulkrim_il10, O_mpulkrim_ir10, O_mpulkrim_im10, O_mpulkrim_ic10 * loflUP);
+              
+              postUI->solTMCODE = O_mpulkrim_tmcode;
+              postUI->solSPCODE = O_mpulkrim_spcode;
+              postUI->solSNCODE = O_mpulkrim_sncode;
+              postUI->solZNCODE = O_mpulkrim_zncode;
+              postUI->solTTCODE = O_mpulkrim_ttcode;
+              
+              i = T_count;
+              
+              break;
+              
+            case SQL_NODATAFOUND:	/* read whole table */
+              printf("No data for Rating Interval\n");
+              rc = ESQL_NOMOREDATA;
+              break;
+              
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, ": SQL-Error for 'MPULKRIMM'\n");
+              break;
+            }
+        }
+
+      EXEC SQL CLOSE C_rinterval_notttz;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetFromDB_MPUSNTAB: Could not close C_mpusntab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        } 
+    }
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUSNTAB                               */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+tostMPUSNTAB *gpstMPUSNTAB;
+long golMPUSNTAB_Length; 
+
+int foiCompareMPSNTABRecord(const void *a, const void *b)
+{
+  tostMPUSNTAB *record;
+  char *str;
+
+  str = (char *)a;
+  record = (tostMPUSNTAB *)b;
+
+  return (strcasecmp(str, record->sachzSHDES));
+}
+
+
+
+int foiBSCS_GetMPUSNTAB()
+{
+  int i, rc = 0;
+  
+  /*
+   * Set up of dynamic table MPUSNTAB
+   */
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*)
+    INTO T_count
+    FROM MPUSNTAB SN, MPULKNXC NXC 
+    WHERE SN.SNCODE = NXC.SNCODE;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetFromDB_MPUSNTAB: Selected count(*) on MPUSNTAB failed.");
+      sqlerror (rc, message);
+    }
+  
+  /*
+   * Memory allocation for MPUSNTAB
+   */
+
+  gpstMPUSNTAB = (tostMPUSNTAB *) malloc(sizeof (tostMPUSNTAB) * (T_count + 1));
+  if (gpstMPUSNTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  else
+    {
+      gpstMPUSNTAB[T_count].solIndex = -1;
+      golMPUSNTAB_Length = T_count;
+    }
+  
+  /*
+   * Loading table MPUSNTAB x MPULKNXC
+   */
+
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpusntab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;          
+          sprintf (message, "fnGetFromDB_MPUSNTAB: Could not open C_mpusntab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+      
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          EXEC SQL FETCH C_mpusntab INTO
+            :O_mpusntab_sncode:O_mpusntab_sncode_ind,
+            :O_mpusntab_des:O_mpusntab_des_ind,
+            :O_mpusntab_shdes:O_mpusntab_shdes_ind,
+            :O_mpusntab_snind:O_mpusntab_snind_ind,
+            :O_mpusntab_network_snind:O_mpusntab_network_snind_ind,
+            :O_mpusntab_sccode:O_mpusntab_sccode_ind;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              gpstMPUSNTAB[i].solIndex = i;
+              gpstMPUSNTAB[i].solSNCODE = O_mpusntab_sncode;
+              STRCPY_FROM_ORA(gpstMPUSNTAB[i].sachzDES, O_mpusntab_des);
+              STRCPY_FROM_ORA(gpstMPUSNTAB[i].sachzSHDES, O_mpusntab_shdes);
+              gpstMPUSNTAB[i].sochSNIND = O_mpusntab_snind;
+              gpstMPUSNTAB[i].sochNETSNIND = O_mpusntab_network_snind;
+              gpstMPUSNTAB[i].solSCCODE = O_mpusntab_sccode;
+
+              /*
+              printf("%ld\t%c %c %5s %s\n",  
+                     gpstMPUSNTAB[i].solSNCODE,
+                     gpstMPUSNTAB[i].sochSNIND,
+                     gpstMPUSNTAB[i].sochNETSNIND,
+                     gpstMPUSNTAB[i].sachzSHDES, gpstMPUSNTAB[i].sachzDES);
+              */
+ 
+              break;
+              
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+            
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetFromDB_MPUSNTAB: SQL-Error for 'MPUSNTAB x MPULKNXC'\n");
+              break;
+            }
+        }
+    
+      EXEC SQL CLOSE  C_mpusntab;
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetFromDB_MPUSNTAB: Could not close C_mpusntab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    }
+  
+  return rc;
+}
+
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading                   table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+int fnGetEventPrice(
+                    char *pachzTmShdes,
+                    char *pachzTmVer,
+                    char *pachzSpShdes,
+                    char *pachzSnShdes,
+                    char *pachzTypeind,
+                    char *pachzEvmVer,
+                    char *pachzTtShdes,
+                    tostEventPrice *ppstEP, tostUsageItem *ppstUI
+                    )
+{
+  int  rc = 0, i;
+  double loflUP;
+
+  /*
+  printf("fnGetEventPrice:%s,%s,%s,%s,%s,%s\n", 
+         pachzTmShdes,
+         pachzTmVer,
+         pachzSpShdes,
+         pachzSnShdes,
+         pachzTypeind,
+         pachzEvmVer);
+  */
+
+  STRCPY_TO_ORA(O_tm_shdes, pachzTmShdes);
+  O_tm_vscode = atoi(pachzTmVer);
+  STRCPY_TO_ORA(O_sp_shdes, pachzSpShdes);
+  STRCPY_TO_ORA(O_sn_shdes, pachzSnShdes);
+  O_evm_vscode = atoi(pachzEvmVer);
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*)
+    INTO T_count
+    FROM MPULKEVM EVM,
+    MPUTTTAB TT,
+    MPULKTMM TMM,
+    MPUTMTAB TM,
+    MPUSNTAB SN,
+    MPUSPTAB SP
+    WHERE TMM.TMCODE = TM.TMCODE 
+    AND TMM.VSCODE = TM.VSCODE
+    AND TM.SHDES = :O_tm_shdes
+    AND TM.VSCODE = :O_tm_vscode
+    AND TMM.SPCODE = SP.SPCODE
+    AND SP.SHDES = :O_sp_shdes
+    AND TMM.SNCODE = SN.SNCODE
+    AND SN.SHDES = :O_sn_shdes
+    AND TMM.STATUS = 'P'
+    AND EVM.VSCODE = :O_evm_vscode
+    AND EVM.EVCODE = TMM.EVCODE
+    AND EVM.TTCODE = TT.TTCODE
+    AND TT.SHDES = :O_tt_shdes;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, ": Selected count(*) on MPULKEVM failed.");
+      sqlerror (rc, message);
+    }
+  
+  if ((rc == 0) && (T_count >= 1)) 
+    {
+      EXEC SQL OPEN C_event_price;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;          
+          sprintf (message, ": Could not open C_event_price cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+      
+      EXEC SQL FETCH C_event_price INTO
+        :O_mpulkevm_tmcode,
+        :O_mpulkevm_spcode,
+        :O_mpulkevm_sncode,
+        :O_mpulkevm_ttcode,
+        :O_mpulkevm_ev_reg,
+        :O_mpulkevm_ev_act,
+        :O_mpulkevm_ev_dea,
+        :O_mpulkevm_ev_int,
+        :O_mpulkevm_ev_inv,
+        :O_mpulkevm_ev_era,
+        :O_mpulkevm_ev_pwc;
+
+      switch (sqlca.sqlcode) 
+        {
+        case 0:			/* succesful read entry */
+          ppstEP->sodEV_REG = O_mpulkevm_ev_reg; 
+          ppstEP->sodEV_ACT = O_mpulkevm_ev_act;
+          ppstEP->sodEV_DEA = O_mpulkevm_ev_dea;
+          ppstEP->sodEV_INT = O_mpulkevm_ev_int;
+          ppstEP->sodEV_INV = O_mpulkevm_ev_inv;
+          ppstEP->sodEV_ERA = O_mpulkevm_ev_era;
+          ppstEP->sodEV_PWC = O_mpulkevm_ev_pwc;
+
+
+          ppstUI->solTMCODE = O_mpulkevm_tmcode;
+          ppstUI->solSPCODE = O_mpulkevm_spcode;
+          ppstUI->solSNCODE = O_mpulkevm_sncode;
+          ppstUI->solTTCODE = O_mpulkevm_ttcode;
+
+          /*
+          if (goenVerbose == TRUE)
+            {
+              fprintf(stderr, "%d.%d.%d.%d\t%f %f %f %f %f %f %f\n",
+                      ppstUI->solTMCODE,
+                      ppstUI->solSPCODE,
+                      ppstUI->solSNCODE,
+                      ppstUI->solTTCODE,
+                      
+                      ppstEP->sodEV_REG,
+                      ppstEP->sodEV_ACT,
+                      ppstEP->sodEV_DEA,
+                      ppstEP->sodEV_INT,
+                      ppstEP->sodEV_INV,
+                      ppstEP->sodEV_ERA,
+                      ppstEP->sodEV_PWC);                 
+            }
+          */
+          break;
+              
+        case SQL_NODATAFOUND:	/* read whole table */
+          rc = ESQL_NOMOREDATA;
+          break;
+            
+        default:			/* some error */
+          rc = ESQL_ERROR;
+          sqlerror (rc, ": SQL-Error for 'MPULKEVM'\n");
+          break;
+        }
+
+      EXEC SQL CLOSE  C_event_price;
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, ": Could not close C_event_price cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        } 
+    }
+
+  return 0;
+}                    
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading                   table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+int fnGetNoEGLEventPrice(
+                         char *pachzTmShdes,
+                         char *pachzTmVer,
+                         char *pachzSpShdes,
+                         char *pachzSnShdes,
+                         char *pachzTypeind,
+                         char *pachzEvmVer,
+                         tostEventPrice *ppstEP, tostUsageItem *ppstUI
+                         )
+{
+  int  rc = 0, i;
+  double loflUP;
+
+  /*
+  printf("fnGetNoEGLEventPrice:%s,%s,%s,%s,%s,%s\n", 
+         pachzTmShdes,
+         pachzTmVer,
+         pachzSpShdes,
+         pachzSnShdes,
+         pachzTypeind,
+         pachzEvmVer);
+  */
+
+  STRCPY_TO_ORA(O_tm_shdes, pachzTmShdes);
+  O_tm_vscode = atoi(pachzTmVer);
+  STRCPY_TO_ORA(O_sp_shdes, pachzSpShdes);
+  STRCPY_TO_ORA(O_sn_shdes, pachzSnShdes);
+  O_evm_vscode = atoi(pachzEvmVer);
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*)
+    INTO T_count
+    FROM MPULKEVM EVM,
+    MPULKTMM TMM,
+    MPUTMTAB TM,
+    MPUSNTAB SN,
+    MPUSPTAB SP
+    WHERE TMM.TMCODE = TM.TMCODE 
+    AND TMM.VSCODE = TM.VSCODE
+    AND TM.SHDES = :O_tm_shdes
+    AND TM.VSCODE = :O_tm_vscode
+    AND TMM.SPCODE = SP.SPCODE
+    AND SP.SHDES = :O_sp_shdes
+    AND TMM.SNCODE = SN.SNCODE
+    AND SN.SHDES = :O_sn_shdes
+    AND TMM.STATUS = 'P'
+    AND EVM.VSCODE = :O_evm_vscode
+    AND EVM.EVCODE = TMM.EVCODE;  
+
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, ": Selected count(*) on MPULKEVM failed.");
+      sqlerror (rc, message);
+    }
+  
+  if (goenVerbose == TRUE)
+    {
+      fprintf(stderr, "EVENTS: %d\n", T_count);
+    }
+
+  if ((rc == 0) && (T_count >= 1)) 
+    {
+      EXEC SQL OPEN C_event_price_nott;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;          
+          sprintf (message, ": Could not open C_event_price_nott cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+
+      i = 0;
+      
+      EXEC SQL FETCH C_event_price_nott INTO
+        :O_mpulkevm_tmcode,
+        :O_mpulkevm_spcode,
+        :O_mpulkevm_sncode,
+        :O_mpulkevm_ttcode,
+        :O_mpulkevm_ev_reg,
+        :O_mpulkevm_ev_act,
+        :O_mpulkevm_ev_dea,
+        :O_mpulkevm_ev_int,
+        :O_mpulkevm_ev_inv,
+        :O_mpulkevm_ev_era,
+        :O_mpulkevm_ev_pwc;
+
+      switch (sqlca.sqlcode) 
+        {
+        case 0:			/* succesful read entry */              
+          ppstEP->sodEV_REG = O_mpulkevm_ev_reg; 
+          ppstEP->sodEV_ACT = O_mpulkevm_ev_act;
+          ppstEP->sodEV_DEA = O_mpulkevm_ev_dea;
+          ppstEP->sodEV_INT = O_mpulkevm_ev_int;
+          ppstEP->sodEV_INV = O_mpulkevm_ev_inv;
+          ppstEP->sodEV_ERA = O_mpulkevm_ev_era;
+          ppstEP->sodEV_PWC = O_mpulkevm_ev_pwc;
+
+          ppstUI->solTMCODE = O_mpulkevm_tmcode;
+          ppstUI->solSPCODE = O_mpulkevm_spcode;
+          ppstUI->solSNCODE = O_mpulkevm_sncode;
+          ppstUI->solTTCODE = O_mpulkevm_ttcode;
+
+          /*
+          if (goenVerbose == TRUE)
+            {
+              fprintf(stderr, "PRICE: %d.%d.%d.%d\t%f %f %f %f %f %f %f\n",
+                      ppstUI->solTMCODE,
+                      ppstUI->solSPCODE,
+                      ppstUI->solSNCODE,
+                      ppstUI->solTTCODE,
+                      
+                      ppstEP->sodEV_REG,
+                      ppstEP->sodEV_ACT,
+                      ppstEP->sodEV_DEA,
+                      ppstEP->sodEV_INT,
+                      ppstEP->sodEV_INV,
+                      ppstEP->sodEV_ERA,
+                      ppstEP->sodEV_PWC);                 
+            }
+          */
+          break;
+              
+        case SQL_NODATAFOUND:	/* read whole table */
+          printf("NOMOREDATA\n");
+          rc = ESQL_NOMOREDATA;
+          break;
+            
+        default:			/* some error */
+          rc = ESQL_ERROR;
+          sqlerror (rc, ": SQL-Error for 'MPULKEVM'\n");
+          break;
+        }
+
+      EXEC SQL CLOSE  C_event_price_nott;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, ": Could not close C_event_price_nott cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        } 
+    }
+
+  return 0;
+}                    
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUPUTAB table with global unit prices */
+/*                                                           */
+/* DESCRIPTION : Looking for the latest global unit price    */
+/*               in table MPUPUTAB                           */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+int foiBSCS_GetGlobalUnitPrice()
+{
+  int rc;
+
+  EXEC SQL AT :O_db_name
+    SELECT PPUIC, PPUAIR
+    INTO :goflUPAir, :goflUPInterc
+    FROM MPUPUTAB
+    WHERE TMCODE IS NULL
+    AND VSDATE = (SELECT MAX(VSDATE) FROM MPUPUTAB WHERE TMCODE IS NULL);
+
+  switch (sqlca.sqlcode) 
+    {
+    case 0:			/* succesful read entry */
+      rc = 0;
+      break;
+      
+    case SQL_NODATAFOUND:	
+      rc = ESQL_NOMOREDATA;
+      break;
+              
+    default:			/* some error */
+      rc = ESQL_ERROR;
+      sqlerror (rc, "foiGetGlobalUnitPrice: SQL-Error for 'MPUPUTAB'\n");
+      break;
+    }
+  
+  return rc;
+
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUPUTAB table for local   unit prices */
+/*            for a given rate plan                          */
+/*                                                           */
+/* DESCRIPTION : Looking for the latest local  unit price    */
+/*               in table MPUPUTAB with date                 */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+long golMPUPUTAB_Length;
+tostMPUPUTAB *gpstMPUPUTAB;
+
+int foiBSCS_GetMPUPUTAB()
+{
+  int i, rc = 0;
+  
+  /*
+   * Set up of dynamic table MPUPUTAB
+   */
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*)
+    INTO T_count
+    FROM MPUPUTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "foiGetMPUPUTAB: Selected count(*) on MPUPUTAB failed.");
+      sqlerror (rc, message);
+    }
+  
+  
+  /*
+   * Memory allocation for MPUPUTAB
+   */
+
+  gpstMPUPUTAB = (tostMPUPUTAB *) malloc(sizeof (tostMPUPUTAB) * (T_count + 1));
+  if (gpstMPUPUTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  else
+    {
+      gpstMPUPUTAB[T_count].solIndex = -1;
+      golMPUPUTAB_Length = T_count;
+    }
+
+  /*
+   * Loading table MPUPUTAB with cursor C_mpuputab
+   */
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpuputab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;          
+          sprintf (message, ": Could not open C_mpuputab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+      
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          /*
+          EXEC SQL FETCH C_mpuputab INTO
+            :O_mpuputab_tmcode:O_mpuputab_tmcode_ind,
+            :O_mpuputab_vsdate:O_mpuputab_vsdate_ind,
+            :O_mpuputab_vsenddate:O_mpuputab_vsenddate_ind,
+            :O_mpuputab_ppuic:O_mpuputab_ppuic_ind,
+            :O_mpuputab_ppuair:O_mpuputab_ppuair_ind;
+          */
+
+          EXEC SQL FETCH C_mpuputab INTO
+            :O_mpuputab_tmcode:O_mpuputab_tmcode_ind,
+            :O_mpuputab_ppuic:O_mpuputab_ppuic_ind,
+            :O_mpuputab_ppuair:O_mpuputab_ppuair_ind;
+
+
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              gpstMPUPUTAB[i].solIndex = i;
+
+              if (O_mpuputab_tmcode_ind == -1)
+                {
+                  gpstMPUPUTAB[i].solTMCODE = -1;             
+                }              
+              /*
+              STRCPY_FROM_ORA(gpstMPUPUTAB[i].sachzVSENDDATE, O_mpuputab_vsenddate);
+              STRCPY_FROM_ORA(gpstMPUPUTAB[i].sachzVSDATE, O_mpuputab_vsdate);
+              */
+              gpstMPUPUTAB[i].soflPPUIC = O_mpuputab_ppuic;
+              gpstMPUPUTAB[i].soflPPUAIR = O_mpuputab_ppuair;
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "PU: %ld\t%lf\t%lf\n",                 
+                          gpstMPUPUTAB[i].solTMCODE,
+                          gpstMPUPUTAB[i].soflPPUIC,
+                          gpstMPUPUTAB[i].soflPPUAIR);
+                }
+              */
+              break;
+              
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+            
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "foiGetMPUPUTAB: SQL-Error for 'MPUPUTAB'\n");
+              break;
+            }
+        }
+    
+      EXEC SQL CLOSE  C_mpuputab;
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "foiGetMPUPUTAB: Could not close C_mpuputab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    }
+  
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUPNTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+typedef struct 
+{
+  long solIndex;
+  long solZPCODE;
+  char sachzDigits[19];
+  long solANDIGITS;
+  long solTMCODE;
+  char sachzTMSHDES[6];
+  long solSPCODE;
+  long solSNCODE;
+  char sachzSVLCODE[17];
+  char sochSPNFLAG;
+  char sachzVSDATE[7];
+  char sochANYCHAR;
+  char sochFUOMSPN;
+  char sochSTATUS;
+  char sachzDES[31];
+
+} tostMPUPNTAB;
+
+
+tostMPUPNTAB *pstMPUPNTAB;
+long golMPUPNTAB_Length;
+
+int fnGetMPUPNTAB()
+{
+  int  i, rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT COUNT(*) 
+    INTO :T_count
+    FROM MPUPNTAB PN, MPUZPTAB ZP, MPUTMTAB TM, MPUSPTAB SP, MPUSNTAB SN
+    WHERE PN.ZPCODE = ZP.ZPCODE
+    AND PN.TMCODE = TM.TMCODE
+    AND PN.SPCODE = SP.SPCODE
+    AND PN.SNCODE = SN.SNCODE;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetMPUPNTAB: Selected count(*) on MPUPNTAB failed.");
+      sqlerror (rc, message);
+    }
+  
+  pstMPUPNTAB = (tostMPUPNTAB *) malloc (sizeof (tostMPUPNTAB) * (T_count + 1));
+  if (pstMPUPNTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUPNTAB[T_count].solIndex = -1;
+  golMPUPNTAB_Length = T_count;
+
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpupntab;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetMUPNTAB: Could not open C_mpupntab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          EXEC SQL FETCH C_mpupntab INTO
+            :O_mpupntab_zpcode:O_mpupntab_zpcode_ind,
+            :O_mpupntab_digits:O_mpupntab_digits_ind,
+            :O_mpupntab_andigits:O_mpupntab_andigits_ind,
+            :O_mpupntab_tmcode:O_mpupntab_tmcode_ind,
+            :O_mpupntab_tmshdes:O_mpupntab_tmshdes_ind,
+            :O_mpupntab_spcode:O_mpupntab_spcode_ind,
+            :O_mpupntab_spshdes:O_mpupntab_spshdes_ind,
+            :O_mpupntab_sncode:O_mpupntab_sncode_ind,
+            :O_mpupntab_snshdes:O_mpupntab_snshdes_ind,
+            :O_mpupntab_svlcode:O_mpupntab_svlcode_ind,
+            :O_mpupntab_spnflag:O_mpupntab_spnflag_ind,
+            :O_mpupntab_vsdate:O_mpupntab_vsdate_ind,
+            :O_mpupntab_anychar:O_mpupntab_anychar_ind,
+            :O_mpupntab_fuomspn:O_mpupntab_fuomspn_ind,
+            :O_mpupntab_status:O_mpupntab_status_ind,
+            :O_mpupntab_des:O_mpupntab_des_ind;
+          
+        switch (sqlca.sqlcode) 
+          {
+          case 0:			/* succesful read entry */
+            pstMPUPNTAB[i].solIndex = i;
+            break;
+        
+          case SQL_NODATAFOUND:	/* read whole table */
+            rc = ESQL_NOMOREDATA;
+            break;
+
+          default:			/* some error */
+            rc = ESQL_ERROR;
+            sqlerror (rc, "fnGetMPUPNTAB: SQL-Error for 'MPUPNTAB'\n");
+            break;
+          }
+      } /* of for .. */
+    
+    EXEC SQL CLOSE  C_mpupntab;
+    if (sqlca.sqlcode != 0) 
+      {
+        rc = ESQL_CLOSETESTCURSOR;
+        sprintf (message, "fnGetMPUPNTAB: Could not close C_mpupntab cursor ");
+        sqlerror (rc, message);
+      }
+    else 
+      {
+        EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */        
+      }
+  } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUTTTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUTTTAB *pstMPUTTTAB;
+long glTTCount;
+
+int foiBSCS_GetTTDes()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUTTTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetTTDes: Selected count(*) on MPUTTTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUTTTAB = (stMPUTTTAB*) malloc (sizeof (stMPUTTTAB) * (T_count + 1));
+
+  if (pstMPUTTTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUTTTAB[T_count].lIndex = -1;
+  glTTCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mputttab_des;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetTTDes: Could not open C_mputttab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mputttab_des INTO
+            :O_code,
+            :O_des,
+            :O_shdes;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUTTTAB[i].lIndex = i;
+              pstMPUTTTAB[i].lCode = O_code;
+              STRCPY_FROM_ORA (pstMPUTTTAB[i].szDes, O_des);
+              STRCPY_FROM_ORA (pstMPUTTTAB[i].szShdes, O_shdes);
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "TT:%ld\t%s\t%s\n", 
+                          pstMPUTTTAB[i].lCode, pstMPUTTTAB[i].szShdes, pstMPUTTTAB[i].szDes);
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetMPUTTTAB: SQL-Error for 'MPUTTTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mputttab_des;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetTTDes: Could not close C_mputttab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUZNTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUZNTAB *pstMPUZNTAB;
+long glZNCount;
+
+int foiBSCS_GetZNDes()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUZNTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetZNDes: Selected count(*) on MPUZNTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUZNTAB = (stMPUZNTAB*) malloc (sizeof (stMPUZNTAB) * (T_count + 1));
+
+  if (pstMPUZNTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUZNTAB[T_count].lIndex = -1;
+  glZNCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpuzntab_des;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetNZDes: Could not open C_mpuzntab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mpuzntab_des INTO
+            :O_code,
+            :O_des,
+            :O_shdes;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUZNTAB[i].lIndex = i;
+              pstMPUZNTAB[i].lCode = O_code;
+              STRCPY_FROM_ORA (pstMPUZNTAB[i].szDes, O_des);
+              STRCPY_FROM_ORA (pstMPUZNTAB[i].szShdes, O_shdes);
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "ZN:%ld\t%s\t%s\n", 
+                          pstMPUZNTAB[i].lCode, pstMPUZNTAB[i].szShdes, pstMPUZNTAB[i].szDes);
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetZNDes: SQL-Error for 'MPUZNTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mpuzntab_des;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetZNDes: Could not close C_mpuzntab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUTMTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUTMTAB *pstMPUTMTAB;
+long glTMCount;
+
+int foiBSCS_GetTMDes()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUTMTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetTMDes: Selected count(*) on MPUTMTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUTMTAB = (stMPUTMTAB*) malloc (sizeof (stMPUTMTAB) * (T_count + 1));
+
+  if (pstMPUTMTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUTMTAB[T_count].lIndex = -1;
+  glTMCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mputmtab_des;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetTMDes: Could not open C_mputmtab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mputmtab_des INTO
+            :O_code,
+            :O_des,
+            :O_shdes;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUTMTAB[i].lIndex = i;
+              pstMPUTMTAB[i].lCode = O_code;
+              STRCPY_FROM_ORA (pstMPUTMTAB[i].szDes, O_des);
+              STRCPY_FROM_ORA (pstMPUTMTAB[i].szShdes, O_shdes);
+
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "TM:%ld\t%s\t%s\n", 
+                          pstMPUTMTAB[i].lCode, pstMPUTMTAB[i].szShdes, pstMPUTMTAB[i].szDes);
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetTMDes: SQL-Error for 'MPUTMTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mputmtab_des;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetTMDes: Could not close C_mputmtab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUSPTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUSPTAB *pstMPUSPTAB;
+long glSPCount;
+
+int foiBSCS_GetSPDes()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUSPTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetSPDes: Selected count(*) on MPUSPTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUSPTAB = (stMPUSPTAB*) malloc (sizeof (stMPUSPTAB) * (T_count + 1));
+
+  if (pstMPUSPTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUSPTAB[T_count].lIndex = -1;
+  glSPCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpusptab_des;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetSPDes: Could not open C_mpusptab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mpusptab_des INTO
+            :O_code,
+            :O_des,
+            :O_shdes;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUSPTAB[i].lIndex = i;
+              pstMPUSPTAB[i].lCode = O_code;
+              STRCPY_FROM_ORA (pstMPUSPTAB[i].szDes, O_des);
+              STRCPY_FROM_ORA (pstMPUSPTAB[i].szShdes, O_shdes);
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetSPDes: SQL-Error for 'MPUSPTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mpusptab_des;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetSPDes: Could not close C_mpusptab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUSNTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUSNTAB *pstMPUSNTAB;
+long glSNCount;
+
+int foiBSCS_GetSNDes()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUSNTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetSNDes: Selected count(*) on MPUSNTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUSNTAB = (stMPUSNTAB*) malloc (sizeof (stMPUSNTAB) * (T_count + 1));
+
+  if (pstMPUSNTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUSNTAB[T_count].lIndex = -1;
+  glSNCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpusntab_des;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetSNDes: Could not open C_mpusntab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mpusntab_des INTO
+            :O_code,
+            :O_des,
+            :O_shdes;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUSNTAB[i].lIndex = i;
+              pstMPUSNTAB[i].lCode = O_code;
+              STRCPY_FROM_ORA (pstMPUSNTAB[i].szDes, O_des);
+              STRCPY_FROM_ORA (pstMPUSNTAB[i].szShdes, O_shdes);
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetSNDes: SQL-Error for 'MPUSNTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mpusntab_des;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetSNDes: Could not close C_mpusntab_des cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPUFFTAB          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPUFFTAB *pstMPUFFTAB;
+long glFFCount;
+
+int foiBSCS_GetMPUFFTAB()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPUFFTAB;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetMPUFFTAB: Selected count(*) on MPUFFTAB failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPUFFTAB = (stMPUFFTAB*) malloc (sizeof (stMPUFFTAB) * (T_count + 1));
+
+  if (pstMPUFFTAB == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPUFFTAB[T_count].lIndex = -1;
+  glFFCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpufftab;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetMPUFFTAB: Could not open C_mpufftab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mpufftab INTO
+            :O_mpufftab_ffcode,
+            :O_mpufftab_co_id,
+            :O_mpufftab_des:O_mpufftab_des_ind,
+            :O_mpufftab_shdes:O_mpufftab_shdes_ind,
+            :O_mpufftab_scalefactor;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPUFFTAB[i].lIndex = i;
+              pstMPUFFTAB[i].lCode = O_mpufftab_ffcode;
+              pstMPUFFTAB[i].lCoId = O_mpufftab_co_id;
+              if (O_mpufftab_des_ind != -1)
+                {
+                  STRCPY_FROM_ORA (pstMPUFFTAB[i].szDes, O_mpufftab_des);
+                }
+              else
+                {
+                  pstMPUFFTAB[i].szDes[0] = '\0';
+                }
+              if (O_mpufftab_shdes_ind != -1)
+                {
+                  STRCPY_FROM_ORA (pstMPUFFTAB[i].szShdes, O_mpufftab_shdes);
+                }
+              else
+                {
+                  pstMPUFFTAB[i].szShdes[0] = '\0';
+                }
+              pstMPUFFTAB[i].fScaleFactor = O_mpufftab_scalefactor;
+
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "FF: %ld\t%ld\t%s\t%s\t%lf\n", 
+                          pstMPUFFTAB[i].lCode,
+                          pstMPUFFTAB[i].lCoId,
+                          pstMPUFFTAB[i].szDes, 
+                          pstMPUFFTAB[i].szShdes,
+                          pstMPUFFTAB[i].fScaleFactor);
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetMPUFFTAB: SQL-Error for 'MPUFFTAB'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mpufftab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetMPUFFTAB: Could not close C_mpufftab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+
+int foiBSCS_Open(char *username, char *password, char *connect_string)
+{
+  int rc;
+  char *cs;
+
+
+  STRCPY_TO_ORA(O_username, username);
+  STRCPY_TO_ORA(O_password, password);
+  STRCPY_TO_ORA(O_db_name, "BSCS_DB");
+  STRCPY_TO_ORA(O_connect_string, connect_string);
+
+  cs = getenv("BSCS_CONNECT");
+  if (cs == NULL)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to BSCS DB with: %s/%s@%s\n", username, password, connect_string);
+        }
+
+      EXEC SQL CONNECT  :O_username
+        IDENTIFIED BY  :O_password
+        AT  :O_db_name
+        USING  :O_connect_string;      
+    }
+  else
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to BSCS DB with: %s\n", cs);
+        }
+
+      EXEC SQL CONNECT :cs
+        AT :O_db_name;
+    }
+
+  
+  if (sqlca.sqlcode == 0)
+    {
+      rc = 0;
+    }
+  else
+    {
+      rc = ESQL_DBCONNECT;
+      sprintf(message, "%s\n", "Could not connect to BSCS database");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+char *fpchzBSCS_GetRTXServerName()
+{
+  static char sachzRTXServerName[64];
+  int rc;
+
+  EXEC SQL AT :O_db_name
+    SELECT NAME_RTX_DB, NAME_RTX_SERVER, TAB_OWNER
+    INTO 
+    :O_rtx_db_name:O_rtx_db_name_ind, 
+    :O_name_rtx_server:O_name_rtx_server_ind,
+    :O_tab_owner:O_tab_owner_ind
+    FROM RTX_CONTROL;
+  
+  if (sqlca.sqlcode == 0)
+    {
+      rc = 0;
+      STRCPY_FROM_ORA(sachzRTXServerName, O_rtx_db_name);      
+    }
+  else
+    {
+      rc = ESQL_DBCONNECT;
+      sprintf(message, "%s\n", "Could not find RTX_DB and server");
+      sqlerror(rc, message);
+      return NULL;
+    }
+  
+  return sachzRTXServerName;
+}
+
+extern stPBGHGLOB gostPBGHEnv;
+
+int foiBSCS_GetWorkDir()
+{
+  char lasnzWorkDir[128];
+  int rc;
+  
+  EXEC SQL AT :O_db_name
+    SELECT CFVALUE
+    INTO 
+    :O_cfvalue
+    FROM MPSCFTAB
+    WHERE CFCODE = 17;
+ 
+  if (sqlca.sqlcode == 0)
+    {
+      rc = 0;
+      STRCPY_FROM_ORA(lasnzWorkDir, O_cfvalue);
+
+      /*
+       * Configure work directory
+       */
+
+      strcpy(gostPBGHEnv.szBaseDirectory, lasnzWorkDir);
+      
+      /*
+       * LOG
+       */
+
+      strcpy(gostPBGHEnv.szLogDir, lasnzWorkDir);
+      strcat(gostPBGHEnv.szLogDir, "/LOG");
+
+      /*
+       * TMP
+       */
+      
+      strcpy(gostPBGHEnv.szTmpDir, lasnzWorkDir);
+      strcat(gostPBGHEnv.szTmpDir, "/TMP");
+
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "WORK: %s\n", gostPBGHEnv.szBaseDirectory);
+          fprintf(stderr, "LOG : %s\n", gostPBGHEnv.szLogDir);
+          fprintf(stderr, "TMP : %s\n", gostPBGHEnv.szTmpDir);
+        }
+    }
+  else
+    {
+      rc = ESQL_DBCONNECT;
+      sprintf(message, "%s\n", "Could not find RTX_DB and server");
+      sqlerror(rc, message);
+    }
+
+  return rc;
+}
+
+char fochBSCS_GetCSSumAddr(int poiCustomerId)
+{
+  char lochCSSumAddr;
+  int rc;
+
+  EXEC SQL AT :O_db_name
+    SELECT CSSUMADDR 
+    INTO :lochCSSumAddr
+    FROM CUSTOMER_ALL
+    WHERE CUSTOMER_ID = :poiCustomerId;
+
+  if (sqlca.sqlcode != 0)
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "%s\n", "Could not find CSSUMADDR for CUSTOMER_ID: %d", poiCustomerId);
+      sqlerror(rc, message);
+    }
+
+  return lochCSSumAddr;;
+}
+
+long foilBSCS_FindCustomerId(char *pasnzCustcode)
+{
+  long loilCustomerId;
+  int rc;
+
+  STRCPY_TO_ORA(O_custcode, pasnzCustcode);
+
+  EXEC SQL AT :O_db_name
+    SELECT CUSTOMER_ID
+    INTO :loilCustomerId
+    FROM CUSTOMER_ALL
+    WHERE CUSTCODE = :O_custcode;
+
+  if (sqlca.sqlcode != 0)
+    {
+      rc = sqlca.sqlcode;
+      sprintf(message, "%s\n", "Could not find CUSTOMER_ID for CUSTCODE: %s", pasnzCustcode);
+      sqlerror(rc, message);
+      loilCustomerId = 0;
+    }
+  
+  return loilCustomerId;
+}
+
+
+static void sqlerror(int rc, char *routine)
+{
+  char message_buffer[512];
+  size_t buffer_size;
+  size_t message_length;
+  
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  
+  fprintf(stderr, "\nOracle error while executing %s!\n", routine);
+  
+  buffer_size = sizeof(message_buffer);
+  sqlglm(message_buffer, &buffer_size, &message_length);
+  fprintf(stderr, "%.*s\n", message_length, message_buffer);
+  
+  EXEC SQL ROLLBACK WORK RELEASE;
+
+  exit(1);
+}
+
+/*
+typedef struct
+{
+  long lIndex;
+
+  long soilTMCODE;
+  long soilVSCODE;
+  char sasnzVSDATE[7];
+  long soilSPCODE;
+  long soilSNCODE;
+  char sochUSGIND;
+  char sochRATEIND;
+
+  long soilRICODE;
+  long soilEVCODE;
+  long soilEGCODE;
+  long soilFUCODE;
+  long soilPPCODE;
+
+} stMPULKTMM;
+*/
+/*
+long          O_mpulktmm_tmcode;
+long          O_mpulktmm_vscode;
+VARCHAR2      O_mpulktmm_vsdate[7];
+long          O_mpulktmm_spcode;
+long          O_mpulktmm_sncode;
+char          O_mpulktmm_usgind;
+char          O_mpulktmm_rateind;
+long          O_mpulktmm_ricode;
+short         O_mpulktmm_ricode_ind;
+long          O_mpulktmm_evcode;
+short         O_mpulktmm_evcode_ind;
+long          O_mpulktmm_egcode;
+short         O_mpulktmm_egcode_ind;
+long          O_mpulktmm_fucode;
+short         O_mpulktmm_fucode_ind;
+long          O_mpulktmm_ppcode;
+short         O_mpulktmm_ppcode_ind;
+*/
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPULKTMM          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPULKTMM *pstMPULKTMM;
+long glTMMCount;
+
+int foiBSCS_GetMPULKTMM()
+{
+  int  rc;
+  int	i;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPULKTMM WHERE STATUS = 'P';
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetMPULKTMM: Selected count(*) on MPULKTMM failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPULKTMM = (stMPULKTMM*) malloc (sizeof (stMPULKTMM) * (T_count + 1));
+
+  if (pstMPULKTMM == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPULKTMM[T_count].soilIndex = -1;
+  glTMMCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL AT :O_db_name OPEN C_mpulktmm_tab;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetMPULKTMM: Could not open C_mpulktmm_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {          
+          EXEC SQL AT :O_db_name 
+            FETCH C_mpulktmm_tab INTO
+            :O_mpulktmm_tmcode:O_mpulktmm_tmcode_ind,
+            :O_mpulktmm_vscode:O_mpulktmm_vscode_ind,
+            :O_mpulktmm_vsdate:O_mpulktmm_vsdate_ind,
+            :O_mpulktmm_spcode:O_mpulktmm_spcode_ind,
+            :O_mpulktmm_sncode:O_mpulktmm_sncode_ind,
+            :O_mpulktmm_usgind:O_mpulktmm_usgind_ind,
+            :O_mpulktmm_rateind:O_mpulktmm_rateind_ind,
+            :O_mpulktmm_ricode:O_mpulktmm_ricode_ind,
+            :O_mpulktmm_evcode:O_mpulktmm_evcode_ind,
+            :O_mpulktmm_egcode:O_mpulktmm_egcode_ind,
+            :O_mpulktmm_fucode:O_mpulktmm_fucode_ind,
+            :O_mpulktmm_ppcode:O_mpulktmm_ppcode_ind;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPULKTMM[i].soilIndex = i;
+
+              pstMPULKTMM[i].soilTMCODE = O_mpulktmm_tmcode;
+              pstMPULKTMM[i].soilVSCODE = O_mpulktmm_vscode;
+              STRCPY_FROM_ORA(pstMPULKTMM[i].sasnzVSDATE, O_mpulktmm_vsdate);
+              pstMPULKTMM[i].soilSPCODE = O_mpulktmm_spcode;
+              pstMPULKTMM[i].soilSNCODE = O_mpulktmm_sncode;
+              pstMPULKTMM[i].sochUSGIND = O_mpulktmm_usgind;
+              pstMPULKTMM[i].sochRATEIND = O_mpulktmm_rateind;
+
+              if (O_mpulktmm_ricode_ind != -1)
+                {
+                  pstMPULKTMM[i].soilRICODE = O_mpulktmm_ricode;
+                }
+              else
+                {
+                  pstMPULKTMM[i].soilRICODE = -1;
+                }
+
+              if (O_mpulktmm_evcode_ind != -1)
+                {
+                  pstMPULKTMM[i].soilEVCODE = O_mpulktmm_evcode;
+                }
+              else
+                {
+                  pstMPULKTMM[i].soilEVCODE = -1;
+                }
+
+              if (O_mpulktmm_egcode_ind != -1)
+                {
+                  pstMPULKTMM[i].soilEGCODE = O_mpulktmm_egcode;
+                }
+              else
+                {
+                  pstMPULKTMM[i].soilEGCODE = -1;                  
+                }
+
+              if (O_mpulktmm_fucode_ind != -1)
+                {
+                  pstMPULKTMM[i].soilFUCODE = O_mpulktmm_fucode;
+                }
+              else
+                {
+                  pstMPULKTMM[i].soilFUCODE = -1;
+                }
+                 
+              if (O_mpulktmm_ppcode_ind != -1)
+                {
+                  pstMPULKTMM[i].soilPPCODE = O_mpulktmm_ppcode;
+                }
+              else
+                {
+                  pstMPULKTMM[i].soilPPCODE = -1;
+                }
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "TMM: %ld.%ld.%ld.%ld\n",
+                          pstMPULKTMM[i].soilTMCODE, 
+                          pstMPULKTMM[i].soilVSCODE,
+                          pstMPULKTMM[i].soilSPCODE,
+                          pstMPULKTMM[i].soilSNCODE);
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetMPULKTMM: SQL-Error for 'MPULKTMM'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL AT :O_db_name CLOSE  C_mpulktmm_tab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetMPULKTMM: Could not close C_mpulktmm_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPULKRIMM         table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPULKRIM *pstMPULKRIM;
+long glRIMCount;
+
+int foiBSCS_GetMPULKRIM()
+{
+  int  rc;
+  int	i;
+  double up = 1.0;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPULKRIM;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetMPULKRIM: Selected count(*) on MPULKRIM failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPULKRIM = (stMPULKRIM*) malloc (sizeof (stMPULKRIM) * (T_count + 1));
+
+  if (pstMPULKRIM == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPULKRIM[T_count].soilIndex = -1;
+  glRIMCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL AT :O_db_name OPEN C_mpulkrim_tab;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetMPULKRIM: Could not open C_mpulkrim_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {             
+          EXEC SQL AT :O_db_name 
+            FETCH C_mpulkrim_tab INTO
+            :O_mpulkrim_ricode,
+            :O_mpulkrim_vscode,
+            :O_mpulkrim_vsdate,
+            :O_mpulkrim_gvcode,
+            :O_mpulkrim_gvvscode,
+            :O_mpulkrim_zncode,
+            :O_mpulkrim_twcode,
+            :O_mpulkrim_twvscode,
+            :O_mpulkrim_ttcode,
+            :O_mpulkrim_typeind,
+            :O_mpulkrim_rndind,
+            :O_mpulkrim_splitind,
+            :O_mpulkrim_umcode,
+            :O_mpulkrim_il01,
+            :O_mpulkrim_ir01,
+            :O_mpulkrim_im01,
+            :O_mpulkrim_ic01,
+            :O_mpulkrim_il02,
+            :O_mpulkrim_ir02,
+            :O_mpulkrim_im02,
+            :O_mpulkrim_ic02,
+            :O_mpulkrim_il03,
+            :O_mpulkrim_ir03,
+            :O_mpulkrim_im03,
+            :O_mpulkrim_ic03,
+            :O_mpulkrim_il04,
+            :O_mpulkrim_ir04,
+            :O_mpulkrim_im04,
+            :O_mpulkrim_ic04,
+            :O_mpulkrim_il05,
+            :O_mpulkrim_ir05,
+            :O_mpulkrim_im05,
+            :O_mpulkrim_ic05,
+            :O_mpulkrim_il06,
+            :O_mpulkrim_ir06,
+            :O_mpulkrim_im06,
+            :O_mpulkrim_ic06,
+            :O_mpulkrim_il07,
+            :O_mpulkrim_ir07,
+            :O_mpulkrim_im07,
+            :O_mpulkrim_ic07,
+            :O_mpulkrim_il08,
+            :O_mpulkrim_ir08,
+            :O_mpulkrim_im08,
+            :O_mpulkrim_ic08,
+            :O_mpulkrim_il09,
+            :O_mpulkrim_ir09,
+            :O_mpulkrim_im09,
+            :O_mpulkrim_ic09,
+            :O_mpulkrim_il10,
+            :O_mpulkrim_ir10,
+            :O_mpulkrim_im10,
+            :O_mpulkrim_ic10;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPULKRIM[i].soilIndex = i;
+
+              pstMPULKRIM[i].soilRICODE = O_mpulkrim_ricode;
+              pstMPULKRIM[i].soilVSCODE = O_mpulkrim_vscode;
+              STRCPY_FROM_ORA(pstMPULKRIM[i].sasnzVSDATE, O_mpulkrim_vsdate);
+              pstMPULKRIM[i].soilGVCODE = O_mpulkrim_gvcode;
+              pstMPULKRIM[i].soilGVVSCODE = O_mpulkrim_gvvscode;
+              pstMPULKRIM[i].soilZNCODE = O_mpulkrim_zncode;
+              pstMPULKRIM[i].soilTWCODE = O_mpulkrim_twcode;
+              pstMPULKRIM[i].soilTWVSCODE = O_mpulkrim_twvscode;
+              pstMPULKRIM[i].soilTTCODE = O_mpulkrim_ttcode;
+              pstMPULKRIM[i].sochTYPEIND = O_mpulkrim_typeind;
+              pstMPULKRIM[i].sochRNDIND = O_mpulkrim_rndind;
+              pstMPULKRIM[i].sochSPLITIND = O_mpulkrim_splitind;
+              pstMPULKRIM[i].soilUMCODE = O_mpulkrim_umcode;
+
+              pstMPULKRIM[i].soflIL01 = O_mpulkrim_il01;
+              pstMPULKRIM[i].soflIR01 = O_mpulkrim_ir01;
+              pstMPULKRIM[i].soiIM01 = O_mpulkrim_im01;
+              pstMPULKRIM[i].soflIC01 = O_mpulkrim_ic01 * up;
+
+              pstMPULKRIM[i].soflIL02 = O_mpulkrim_il02;
+              pstMPULKRIM[i].soflIR02 = O_mpulkrim_ir02;
+              pstMPULKRIM[i].soiIM02 = O_mpulkrim_im02;
+              pstMPULKRIM[i].soflIC02 = O_mpulkrim_ic02 * up;
+
+              pstMPULKRIM[i].soflIL03 = O_mpulkrim_il03;
+              pstMPULKRIM[i].soflIR03 = O_mpulkrim_ir03;
+              pstMPULKRIM[i].soiIM03 = O_mpulkrim_im03;
+              pstMPULKRIM[i].soflIC03 = O_mpulkrim_ic03 * up;
+
+              pstMPULKRIM[i].soflIL04 = O_mpulkrim_il04;
+              pstMPULKRIM[i].soflIR04 = O_mpulkrim_ir04;
+              pstMPULKRIM[i].soiIM04 = O_mpulkrim_im04;
+              pstMPULKRIM[i].soflIC04 = O_mpulkrim_ic04 * up;
+
+              pstMPULKRIM[i].soflIL05 = O_mpulkrim_il05;
+              pstMPULKRIM[i].soflIR05 = O_mpulkrim_ir05;
+              pstMPULKRIM[i].soiIM05 = O_mpulkrim_im05;
+              pstMPULKRIM[i].soflIC05 = O_mpulkrim_ic05 * up;
+
+              pstMPULKRIM[i].soflIL06 = O_mpulkrim_il06;
+              pstMPULKRIM[i].soflIR06 = O_mpulkrim_ir06;
+              pstMPULKRIM[i].soiIM06 = O_mpulkrim_im06;
+              pstMPULKRIM[i].soflIC06 = O_mpulkrim_ic06 * up;
+
+              pstMPULKRIM[i].soflIL07 = O_mpulkrim_il07;
+              pstMPULKRIM[i].soflIR07 = O_mpulkrim_ir07;
+              pstMPULKRIM[i].soiIM07 = O_mpulkrim_im07;
+              pstMPULKRIM[i].soflIC07 = O_mpulkrim_ic07 * up;
+
+              pstMPULKRIM[i].soflIL08 = O_mpulkrim_il08;
+              pstMPULKRIM[i].soflIR08 = O_mpulkrim_ir08;
+              pstMPULKRIM[i].soiIM08 = O_mpulkrim_im08;
+              pstMPULKRIM[i].soflIC08 = O_mpulkrim_ic08 * up;
+
+              pstMPULKRIM[i].soflIL09 = O_mpulkrim_il09;
+              pstMPULKRIM[i].soflIR09 = O_mpulkrim_ir09;
+              pstMPULKRIM[i].soiIM09 = O_mpulkrim_im09;
+              pstMPULKRIM[i].soflIC09 = O_mpulkrim_ic09 * up;
+
+              pstMPULKRIM[i].soflIL10 = O_mpulkrim_il10;
+              pstMPULKRIM[i].soflIR10 = O_mpulkrim_ir10;
+              pstMPULKRIM[i].soiIM10 = O_mpulkrim_im10;
+              pstMPULKRIM[i].soflIC10 = O_mpulkrim_ic10 * up;
+
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "RIM: %ld.%ld.%ld.%ld.%ld.%ld.%ld.%ld\t%.2lf\t%.2lf\t%d\t%.2lf\n",
+                          pstMPULKRIM[i].soilRICODE,
+                          pstMPULKRIM[i].soilVSCODE,
+                          pstMPULKRIM[i].soilGVCODE,
+                          pstMPULKRIM[i].soilGVVSCODE,
+                          pstMPULKRIM[i].soilZNCODE,
+                          pstMPULKRIM[i].soilTWCODE,
+                          pstMPULKRIM[i].soilTWVSCODE,
+                          pstMPULKRIM[i].soilTTCODE,                          
+                          pstMPULKRIM[i].soflIL10,
+                          pstMPULKRIM[i].soflIR10,
+                          pstMPULKRIM[i].soiIM10,
+                          pstMPULKRIM[i].soflIC10
+                          );
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetMPULKRIM: SQL-Error for 'MPULKRIM'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL AT :O_db_name CLOSE  C_mpulkrim_tab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetMPULKRIM: Could not close C_mpulkrim_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+
+
+/*************************************************************/
+/*                                                           */
+/* ABSTRACT : Reading MPULKEVM          table  for document  */
+/*            generation from databases                      */
+/*                                                           */
+/* DESCRIPTION :                                             */
+/* First reads, how may entries exist, then allocates memory */
+/* for the entries and reads the entries into allocated      */
+/* memory.                                                   */
+/*                                                           */
+/* CALLED SUBROUTINES :                                      */
+/*                                                           */
+/*                                                           */
+/* RETURN CODES :                                            */
+/*                                                           */
+/*   0                  : The function worked properly       */
+/*   ERRORS                                                  */
+/* ESQL_NOMOREDATA      : no more data                       */
+/*                                                           */
+/*************************************************************/ 
+
+stMPULKEVM *pstMPULKEVM;
+long glEVMCount;
+
+int foiBSCS_GetMPULKEVM()
+{
+  int  rc;
+  int	i;
+  double up = 1.0;
+  
+  rc = 0;
+
+  T_count = 0;
+  EXEC SQL AT :O_db_name
+    SELECT count(*)
+    INTO :T_count
+    FROM MPULKEVM;
+  
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_SELCOUNT;
+      sprintf (message, "fnGetMPULKEVM: Selected count(*) on MPULKEVM failed.");
+      sqlerror (rc, message);
+    }
+
+  pstMPULKEVM = (stMPULKEVM*) malloc (sizeof (stMPULKEVM) * (T_count + 1));
+
+  if (pstMPULKEVM == NULL) 
+    {
+      return ((int) ESQL_ALLOC);
+    }
+  /* preset last element */
+  pstMPULKEVM[T_count].soilIndex = -1;
+  glEVMCount = T_count;
+  
+  if ((rc == 0) && (T_count != 0)) 
+    {
+      EXEC SQL OPEN C_mpulkevm_tab;
+      
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_OPENTESTCURSOR;
+          sprintf (message, "fnGetMPULKEVM: Could not open C_mpulkevm_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          rc = 0;
+        }
+    
+      for (i = 0; (i < T_count) && (rc == 0); i++) 
+        {
+          
+          EXEC SQL FETCH C_mpulkevm_tab INTO
+            :O_mpulkevm_evcode,
+            :O_mpulkevm_vscode,
+            :O_mpulkevm_vsdate,
+            :O_mpulkevm_twcode,
+            :O_mpulkevm_twvscode,
+            :O_mpulkevm_ttcode,
+            :O_mpulkevm_umcode,
+            :O_mpulkevm_ev_reg,
+            :O_mpulkevm_ev_act,
+            :O_mpulkevm_ev_dea,
+            :O_mpulkevm_ev_int,
+            :O_mpulkevm_ev_inv,
+            :O_mpulkevm_ev_era,
+            :O_mpulkevm_ev_pwc;
+          
+          switch (sqlca.sqlcode) 
+            {
+            case 0:			/* succesful read entry */
+              pstMPULKEVM[i].soilIndex = i;
+              pstMPULKEVM[i].soilEVCODE = O_mpulkevm_evcode;
+              pstMPULKEVM[i].soilVSCODE = O_mpulkevm_vscode;
+              STRCPY_FROM_ORA(pstMPULKEVM[i].sasnzVSDATE, O_mpulkevm_vsdate);
+              pstMPULKEVM[i].soilTWCODE = O_mpulkevm_twcode;
+              pstMPULKEVM[i].soilTWVSCODE = O_mpulkevm_twvscode;
+              pstMPULKEVM[i].soilTTCODE = O_mpulkevm_ttcode;
+              pstMPULKEVM[i].soilUMCODE = O_mpulkevm_umcode;
+              
+              pstMPULKEVM[i].soflEV_REG = O_mpulkevm_ev_reg * up;
+              pstMPULKEVM[i].soflEV_ACT = O_mpulkevm_ev_act * up;
+              pstMPULKEVM[i].soflEV_DEA  = O_mpulkevm_ev_dea * up;
+              pstMPULKEVM[i].soflEV_INT  = O_mpulkevm_ev_int * up;
+              pstMPULKEVM[i].soflEV_INV  = O_mpulkevm_ev_inv * up;
+              pstMPULKEVM[i].soflEV_ERA  = O_mpulkevm_ev_era * up;
+              pstMPULKEVM[i].soflEV_PWC  = O_mpulkevm_ev_pwc * up;
+
+              /*
+              if (goenVerbose == TRUE)
+                {
+                  fprintf(stderr, "EVM: %ld.%ld.%ld.%ld.%ld %.2lf\t%.2lf\t%.2lf\t%.2lf\t%.2lf\t%.2lf\t%.2lf\t%.2lf\n",
+                          pstMPULKEVM[i].soilEVCODE,
+                          pstMPULKEVM[i].soilVSCODE,
+                          pstMPULKEVM[i].soilTWCODE,
+                          pstMPULKEVM[i].soilTWVSCODE,
+                          pstMPULKEVM[i].soilTTCODE,
+                          pstMPULKEVM[i].soflEV_REG,
+                          pstMPULKEVM[i].soflEV_ACT,
+                          pstMPULKEVM[i].soflEV_DEA,
+                          pstMPULKEVM[i].soflEV_INT,
+                          pstMPULKEVM[i].soflEV_INV,
+                          pstMPULKEVM[i].soflEV_ERA,
+                          pstMPULKEVM[i].soflEV_PWC
+                          );
+                }
+              */
+              break;
+        
+            case SQL_NODATAFOUND:	/* read whole table */
+              rc = ESQL_NOMOREDATA;
+              break;
+
+            default:			/* some error */
+              rc = ESQL_ERROR;
+              sqlerror (rc, "fnGetMPULKEVM: SQL-Error for 'MPULKEVM'\n");
+              break;
+            }
+        } /* of for .. */
+      
+      EXEC SQL CLOSE  C_mpulkevm_tab;
+
+      if (sqlca.sqlcode != 0) 
+        {
+          rc = ESQL_CLOSETESTCURSOR;
+          sprintf (message, "fnGetMPULKEVM: Could not close C_mpulkevm_tab cursor ");
+          sqlerror (rc, message);
+        }
+      else 
+        {
+          EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+        }
+    } /* if (rc == 0) ... */
+
+  return rc;
+}
+

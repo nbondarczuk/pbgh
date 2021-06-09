@@ -1,0 +1,542 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static char *SCCS_VERSION = "1.0";
+
+void fovdPrintVerInfoRtx (void)
+{
+  printf ("%s\t\t\t%s\n", __FILE__, SCCS_VERSION);
+}
+
+#define SQLCA_INIT
+#define SQLCA_STORAGE_CLASS static
+
+EXEC SQL INCLUDE SQLCA;
+EXEC SQL INCLUDE ORACA;
+EXEC ORACLE OPTION (INCLUDE=./include);
+
+#include "pbgh.h"
+#include "bgh_esql.h"
+#include "rtx.h"
+#include "gen.h"
+#include "rtx_tree.h"
+#include "rtx_list.h"
+
+extern toenBool goenVerbose;
+extern toenBool goenTestOnly;
+extern int goiCustomersNo;
+
+/*
+ * RTX table
+ */
+
+tostRTX *gpstRTX;
+long goilRTX_Length;
+
+/*
+ * RTX index
+ */
+
+tostRTXTree gostRTXTree;
+
+/*
+ * RTX_ERROR table
+ */
+
+tostRTX *gpstRTX_ERROR;
+long goilRTX_ERROR_Length;
+
+#define SQL_NODATAFOUND    1403
+
+static void sqlerror(int, char *);
+static int foiRTX_GetCustomerContractRTX_ERROR(long, long, char *, char *);
+static int foiRTX_GetCustomerRTX_ERROR(long, char *, char *);
+static int foiRTX_IsDroppedCall(tostRTX *);
+static int foiRTX_RemoveContractDroppedCalls(long);
+static int foiRTX_RemoveDroppedCalls();
+
+void fovdPrintRTX(tostRTX *);
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+VARCHAR       O_username[50];
+VARCHAR       O_password[50];
+VARCHAR       O_rtx_db_name[50];
+VARCHAR       O_connect_string[50];
+
+long          T_count;
+
+VARCHAR       O_rtx_entry_date_start[7];
+VARCHAR       O_rtx_entry_date_end[7];
+long          O_rtx_customer_id;
+long          O_rtx_contract_id;
+
+long          O_rtx_sqn[100];
+long          O_rtx_lfnr[100];
+long          O_rtx_sub_lfnr[100];
+VARCHAR       O_start_d_t[100][13];
+long          O_r_p_contract_id[100];
+
+long          O_zpcode[100];
+long          O_actual_volume[100];
+long          O_ttcode[100];
+long          O_twcode[100];
+long          O_rated_clicks[100];
+long          O_sp_code[100];
+long          O_tzcode[100];
+char          O_action_code[100][1];
+long          O_tm_version[100];
+long          O_umcode[100];
+long          O_rated_volume[100];
+long          O_sncode[100];
+char          O_rtx_type[100][2];
+VARCHAR       O_original_start_d_t[100][13];
+long          O_gvcode[100];
+long          O_r_p_mccode[100];
+long          O_r_p_mcind[100];
+long          O_call_type[100];
+double        O_rated_flat_amount[100];
+long          O_plcode[100];
+long          O_eccode[100];
+char          O_roamer_ind[100][1];
+double        O_rounded_volume[100];
+long          O_tmcode[100];
+char          O_fuomspn[100][1];
+double        O_mc_sc_factor[100];
+long          O_eg_version[100];
+long          O_rp_version[100];
+
+short         O_rtx_sqn_ind[100];
+short         O_rtx_lfnr_ind[100];
+short         O_rtx_sub_lfnr_ind[100];
+short         O_start_d_t_ind[100];
+short         O_r_p_contract_id_ind[100];
+
+short         O_zpcode_ind[100];
+short         O_actual_volume_ind[100];
+short         O_ttcode_ind[100];
+short         O_twcode_ind[100];
+short         O_rated_clicks_ind[100];
+short         O_sp_code_ind[100];
+short         O_tzcode_ind[100];
+short         O_action_code_ind[100];
+short         O_tm_version_ind[100];
+short         O_umcode_ind[100];
+short         O_rated_volume_ind[100];
+short         O_sncode_ind[100];
+short         O_rtx_type_ind[100];
+short         O_original_start_d_t_ind[100];
+short         O_gvcode_ind[100];
+short         O_r_p_mccode_ind[100];
+short         O_r_p_mcind_ind[100];
+short         O_call_type_ind[100];
+short         O_rated_flat_amount_ind[100];
+short         O_plcode_ind[100];
+short         O_eccode_ind[100];
+short         O_roamer_ind_ind[100];
+short         O_rounded_volume_ind[100];
+short         O_tmcode_ind[100];
+short         O_fuomspn_ind[100];
+short         O_mc_sc_factor_ind[100];
+short         O_eg_version_ind[100];
+short         O_rp_version_ind[100];
+
+EXEC SQL END DECLARE SECTION;
+
+/*
+ * RTX
+ */
+
+EXEC SQL AT :O_rtx_db_name
+DECLARE C_rtx CURSOR FOR 
+SELECT RTX_SQN, RTX_LFNR, RTX_SUB_LFNR, 
+  TO_CHAR(START_D_T, 'yymmddhhmiss'), 
+  R_P_CONTRACT_ID,
+  zpcode,
+  actual_volume,
+  ttcode,
+  twcode,
+  rated_clicks,
+  sp_code,
+  tzcode,
+  action_code,
+  tm_version,
+  umcode,
+  rated_volume,
+  sncode,
+  rtx_type,
+  TO_CHAR(original_start_d_t, 'yymmddhhmiss'),
+  gvcode,
+  r_p_mccode,
+  r_p_mcind,
+  call_type,
+  rated_flat_amount,
+  plcode,
+  eccode,
+  roamer_ind,
+  rounded_volume,
+  tmcode,
+  fuomspn,
+  mc_sc_factor,
+  eg_version,
+  rp_version
+FROM RTX
+WHERE RTX_ENT_DATE <= TO_DATE(:O_rtx_entry_date_end, 'yymmdd')
+AND RTX_ENT_DATE >= TO_DATE(:O_rtx_entry_date_start, 'yymmdd')
+AND R_P_CUSTOMER_ID = :O_rtx_customer_id;
+
+/*
+ * VARCHAR handling
+ */
+
+#define STRCPY_TO_ORA(dest, source)	\
+        {				\
+           (dest).len = strlen(source);	\
+           (void)memcpy((void*)(dest).arr, (void*)(source), (size_t)(dest).len); \
+	}
+#define STRCPY_FROM_ORA(dest, source)	\
+        { 				\
+          (void)memcpy((void*)(dest), (void*)(source).arr, (size_t)(source).len); \
+          (dest)[(source).len] = '\0';	\
+	}
+
+static char message[1000];
+
+int foiRTX_Open(char *username, char *password, char *connect_string)
+{
+  int rc;
+  char *cs;
+  toenBool loenStatus;
+
+  STRCPY_TO_ORA(O_username, username);
+  STRCPY_TO_ORA(O_password, password);
+  STRCPY_TO_ORA(O_rtx_db_name, "RTX_DB");
+  STRCPY_TO_ORA(O_connect_string, connect_string);
+
+  cs = getenv("RTX_CONNECT");
+  if (cs == NULL)
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to RTX DB with: %s/%s@%s\n", username, password, connect_string);
+        }
+
+      EXEC SQL CONNECT :O_username
+        IDENTIFIED BY :O_password
+        AT :O_rtx_db_name
+        USING :O_connect_string;
+    }
+  else
+    {
+      if (goenVerbose == TRUE)
+        {
+          fprintf(stderr, "Connecting to RTX DB with: %s\n", cs);
+        }
+      
+      EXEC SQL connect :cs AT :O_rtx_db_name;
+    }
+
+  if (sqlca.sqlcode == 0)
+    {
+      rc = 0;
+    }
+  else
+    {
+      rc = ESQL_DBCONNECT;
+      sprintf(message, "%s\n", "Could not connect to RTX database");
+      sqlerror(rc, message);
+    }
+
+  goilRTX_Length = 0;
+  gpstRTX = NULL;
+
+  loenStatus = foenRTXTree_Init(&gostRTXTree);
+  if (loenStatus != TRUE)
+    {
+      rc = 1;
+    }
+
+  return rc;
+}
+
+/*
+ * Load RTX table for a given customer_id
+ */
+
+tostRTXList gostRTXList;
+
+int foiRTX_GetCustomerRTX(long poilCustomerId, char *pachzStart, char *pachzEnd)
+{
+  int rc, loiSeg, loiCalls, i;
+  toenBool loenStatus;
+  tostRTX **lastRTX;
+  char lasnzKey[64];
+
+  O_rtx_customer_id = poilCustomerId;
+  STRCPY_TO_ORA(O_rtx_entry_date_start, pachzStart);
+  STRCPY_TO_ORA(O_rtx_entry_date_end, pachzEnd);
+
+  fprintf(stderr, "Customer: %ld\n", poilCustomerId);
+  fprintf(stderr, "Start   : %s\n", pachzStart);
+  fprintf(stderr, "End     : %s\n", pachzEnd);
+  
+  /*
+   * This is a header of a list of segments with RTX records
+   */
+
+  loenStatus = foenRTXList_Init(&gostRTXList);
+  if (loenStatus != TRUE)
+    {
+      return 1;
+    }
+  
+  EXEC SQL AT :O_rtx_db_name OPEN C_rtx;
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_OPENTESTCURSOR;          
+      sprintf (message, "foilGetRTX: Could not open C_rtx cursor ");
+      sqlerror (rc, message);
+    }
+  else 
+    {
+      rc = 0;
+    }
+
+  fprintf(stderr, "Cursor opened\n");
+
+  for (loiCalls = 0, loiSeg = 0; (rc == 0); loiSeg++) 
+    {      
+      EXEC SQL AT :O_rtx_db_name FETCH C_rtx INTO 
+        :O_rtx_sqn:O_rtx_sqn_ind,
+        :O_rtx_lfnr:O_rtx_lfnr_ind,
+        :O_rtx_sub_lfnr:O_rtx_sub_lfnr_ind,
+        :O_start_d_t:O_start_d_t_ind,
+        :O_r_p_contract_id:O_r_p_contract_id_ind,
+        :O_zpcode:O_zpcode_ind,
+        :O_actual_volume:O_actual_volume_ind,
+        :O_ttcode:O_ttcode_ind,
+        :O_twcode:O_twcode_ind,
+        :O_rated_clicks:O_rated_clicks_ind,
+        :O_sp_code:O_sp_code_ind,
+        :O_tzcode:O_tzcode_ind,
+        :O_action_code:O_action_code_ind,
+        :O_tm_version:O_tm_version_ind,
+        :O_umcode:O_umcode_ind,
+        :O_rated_volume:O_rated_volume_ind,
+        :O_sncode:O_sncode_ind,
+        :O_rtx_type:O_rtx_type_ind,
+        :O_original_start_d_t:O_original_start_d_t_ind,
+        :O_gvcode:O_gvcode_ind,
+        :O_r_p_mccode:O_r_p_mccode_ind,
+        :O_r_p_mcind:O_r_p_mcind_ind,
+        :O_call_type:O_call_type_ind,
+        :O_rated_flat_amount:O_rated_flat_amount_ind,
+        :O_plcode:O_plcode_ind,
+        :O_eccode:O_eccode_ind,
+        :O_roamer_ind:O_roamer_ind_ind,
+        :O_rounded_volume:O_rounded_volume_ind,
+        :O_tmcode:O_tmcode_ind,
+        :O_fuomspn:O_fuomspn_ind,
+        :O_mc_sc_factor:O_mc_sc_factor_ind,
+        :O_eg_version:O_eg_version_ind,
+        :O_rp_version:O_rp_version_ind;
+      
+      switch (sqlca.sqlcode) 
+        {
+        case 0:			/* succesful read entry */
+        case SQL_NODATAFOUND:	/* read whole table */
+          
+          if (sqlca.sqlcode == SQL_NODATAFOUND)
+            {
+              rc = ESQL_NOMOREDATA;
+              loiCalls = sqlca.sqlerrd[2] - (100 * loiSeg);
+              fprintf(stderr, "RTX No: %d\n", loiCalls);
+              fprintf(stderr, "NODATA\n");
+            }
+          else
+            {
+              loiCalls = 100;                    
+              fprintf(stderr, "RTX No: %d\n", loiCalls);
+            }
+
+          /*
+           * Allocate new segmentof a list an return it to calling evn.
+           */
+          
+          lastRTX = fpstRTXList_NewSegment(&gostRTXList, loiCalls);
+          if (lastRTX == NULL)
+            {
+              return 1;
+            }
+          
+          for (i = 0; i < loiCalls; i++)
+            {
+              lastRTX[i]->rtx_sqn = O_rtx_sqn[i];
+              lastRTX[i]->rtx_lfnr = O_rtx_lfnr[i];
+              lastRTX[i]->rtx_sub_lfnr = O_rtx_sub_lfnr[i];
+              STRCPY_FROM_ORA(lastRTX[i]->start_d_t, O_start_d_t[i]);
+              lastRTX[i]->r_p_contract_id = O_r_p_contract_id[i];
+              lastRTX[i]->zpcode = O_zpcode[i];
+              lastRTX[i]->actual_volume = O_actual_volume[i];
+              lastRTX[i]->ttcode = O_ttcode[i];
+              lastRTX[i]->twcode = O_twcode[i];
+              lastRTX[i]->rated_clicks = O_rated_clicks[i];
+              lastRTX[i]->sp_code = O_sp_code[i];
+              lastRTX[i]->tzcode = O_tzcode[i];
+              lastRTX[i]->action_code = O_action_code[i][0];
+              lastRTX[i]->tm_version = O_tm_version[i];
+              lastRTX[i]->umcode = O_umcode[i];
+              lastRTX[i]->rated_volume = O_rated_volume[i];
+              lastRTX[i]->sncode = O_sncode[i];
+              lastRTX[i]->rtx_type = O_rtx_type[i][0];                         
+              STRCPY_FROM_ORA(lastRTX[i]->original_start_d_t, O_original_start_d_t[i]);                            
+              lastRTX[i]->gvcode = O_gvcode[i];
+              lastRTX[i]->r_p_mccode = O_r_p_mccode[i];
+              lastRTX[i]->r_p_mcind = O_r_p_mcind[i];
+              lastRTX[i]->call_type = O_call_type[i];
+              lastRTX[i]->rated_flat_amount = O_rated_flat_amount[i];
+              lastRTX[i]->plcode = O_plcode[i];
+              lastRTX[i]->eccode = O_eccode[i];
+              lastRTX[i]->roamer_ind = O_roamer_ind[i][0];
+              lastRTX[i]->rounded_volume = O_rounded_volume[i];
+              lastRTX[i]->tmcode = O_tmcode[i];
+              lastRTX[i]->fuomspn = O_fuomspn[i][0];
+              lastRTX[i]->mc_sc_factor = O_mc_sc_factor[i];
+              lastRTX[i]->eg_version = O_eg_version[i];
+              lastRTX[i]->rp_version = O_rp_version[i];              
+
+              /*
+              fovdPrintRTX(lastRTX[i]);
+              */
+              /*
+               * Build index with key :
+               */
+              
+              sprintf(lasnzKey, "%ld.%ld.%ld.%ld.%c.%ld.%ld.%ld.%ld",
+                      O_r_p_contract_id[i],
+                      O_tmcode[i],
+                      O_tm_version[i],
+                      O_sncode[i],
+                      O_rtx_type[i][0],
+                      O_rp_version[i],
+                      O_eg_version[i],
+                      O_ttcode[i],
+                      O_tzcode[i]);
+              
+              loenStatus = foenRTXTree_Insert(&gostRTXTree, lasnzKey, lastRTX[i]);
+              if (loenStatus != TRUE)
+                {
+                  return FALSE;
+                }              
+
+              /*
+               * Build additional key if no EGLP defined
+               */
+
+              sprintf(lasnzKey, "%ld.%ld.%ld.%ld.%c.%ld.%ld.%ld.%ld",
+                      O_r_p_contract_id[i],
+                      O_tmcode[i],
+                      O_tm_version[i],
+                      O_sncode[i],
+                      O_rtx_type[i][0],
+                      O_rp_version[i],
+                      O_eg_version[i],
+                      0,
+                      0);
+              
+              loenStatus = foenRTXTree_Insert(&gostRTXTree, lasnzKey, lastRTX[i]);
+              if (loenStatus != TRUE)
+                {
+                  return FALSE;
+                }
+            }
+
+          break;
+                            
+        default:			/* some error */
+          rc = ESQL_ERROR;
+          fprintf(stderr, "ERROR\n");
+          sqlerror (rc, "fnGetRTX: SQL-Error for 'RTX'\n");
+              break;
+        }
+    }
+
+  fprintf(stderr, "Loaded %d segments with %d calls\n", loiSeg, sqlca.sqlerrd[2]);
+  
+  loenStatus = foenRTXTree_Print(&gostRTXTree);
+  if (loenStatus != TRUE)
+    {
+      return FALSE;
+    }
+
+  EXEC SQL AT :O_rtx_db_name CLOSE  C_rtx;
+  if (sqlca.sqlcode != 0) 
+    {
+      rc = ESQL_CLOSETESTCURSOR;
+      sprintf (message, "foilGetRTX: Could not close C_rtx cursor ");
+      sqlerror (rc, message);
+    }
+  else 
+    {
+      EXEC ORACLE OPTION (release_cursor=yes); /* remove link cursor-cursor's cache */
+      rc = 0;
+    }
+  
+  return rc;
+}
+  
+static void sqlerror(int rc, char *routine)
+{
+  char message_buffer[512];
+  size_t buffer_size;
+  size_t message_length;
+  
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  
+  fprintf(stderr, "\nOracle error while executing %s!\n", routine);
+  
+  buffer_size = sizeof(message_buffer);
+  sqlglm(message_buffer, &buffer_size, &message_length);
+  fprintf(stderr, "%.*s\n", message_length, message_buffer);
+  
+  EXEC SQL ROLLBACK WORK RELEASE;
+
+  exit(1);
+}
+
+int foiRTX_FreeRTX()
+{
+  toenBool loenStatus;
+
+  loenStatus = foenRTXList_Delete(&gostRTXList);
+  if (loenStatus != TRUE)
+    {
+      return 1;
+    }
+
+  return 0;
+}
+
+
+void fovdPrintRTX(tostRTX *lpstRTX)
+{
+  fprintf(stderr, 
+          "%s %ld %ld.%ld.%ld.%ld.%c.%ld.%ld.%ld.%ld\t %8ld\t%.2lf\t%.2lf\n", 
+          lpstRTX->start_d_t, 
+          lpstRTX->call_type,
+          lpstRTX->tmcode,
+          lpstRTX->tm_version,
+          lpstRTX->sp_code,
+          lpstRTX->sncode,
+          lpstRTX->rtx_type,
+          lpstRTX->rp_version,
+          lpstRTX->eg_version,                      
+          lpstRTX->ttcode,
+          lpstRTX->tzcode,
+          
+          lpstRTX->actual_volume,
+          lpstRTX->rounded_volume,
+          lpstRTX->rated_flat_amount);      
+}
+

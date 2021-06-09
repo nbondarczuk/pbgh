@@ -1,0 +1,61 @@
+/**************************************************************************/
+/*  MODULE : data generator                                               */
+/*                                                                        */
+/*  AUTHOR : N.Bondarczuk                                                 */
+/*                                                                        */
+/*  CREATION DATE : 25.10.97                                              */
+/*                                                                        */
+/*  DESCRIPTION : Generates output                                        */
+/*                                                                        */
+/**************************************************************************/
+
+#include <stdio.h>
+
+#include "pbgh.h"
+
+#if 0	/* just for version.sh */
+static char *SCCS_VERSION = "1.1";
+#endif
+
+
+#define EQ(a, b) !strcmp(a, b)
+#define MAX_BUFFER 512
+#define ERROR -1
+#define EOS '\0'
+#define DOT '.'
+
+#define IN 
+#define OUT
+
+#define LEFT_TEX_BRACKET "{"
+#define RIGHT_TEX_BRACKET "}"
+
+#define LEFT_XGF_BRACKET "("
+#define RIGHT_XGF_BRACKET ")"
+
+#define EOL NULL
+
+#define NOT(a) ((a) == FALSE)
+
+#ifdef TRUE
+#undef TRUE
+#endif
+
+#ifdef FALSE
+#undef FALSE
+#endif
+
+typedef enum toenBool {FALSE = 0, TRUE = 1} toenBool;
+
+typedef enum {START, NEXTSET, NEXTDOCCOPY, NEXTDOCNOCOPY, STOP} toenOutputState;
+
+#define MAX_LINE 256
+#define MAX_FILE 256
+
+void fovdGen();
+void fovdGenInit();
+void fovdGenNext(TYPEID, long, long);
+toenBool fovdGenFlush();
+void fovdGenTurnOffCopy();
+char *fpchzTmpFileName();
+void fovdGenClose();
